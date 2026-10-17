@@ -1,3 +1,4 @@
+import re
 from django import forms
 from django.contrib import admin
 from django.contrib import messages
@@ -21,16 +22,31 @@ class AccessForm(forms.ModelForm):
 
 
 class SemesterInviteForm(forms.Form):
-    emails = forms.CharField(widget=forms.Textarea, help_text='One Google email per line; up to 500 addresses.')
+    emails = forms.CharField(widget=forms.Textarea, help_text='Paste an Excel email column. Line breaks, tabs, spaces, commas and semicolons are accepted; up to 500 unique addresses.')
     reason = forms.CharField(widget=forms.Textarea, max_length=2000)
 
     def clean_emails(self):
         validator = forms.EmailField()
-        emails = list(dict.fromkeys(line.strip().lower() for line in self.cleaned_data['emails'].splitlines() if line.strip()))
+        emails = []
+        invalid_lines = []
+        for number, line in enumerate(self.cleaned_data['emails'].splitlines(), start=1):
+            for token in re.split(r'[\s,;]+', line.strip()):
+                if not token:
+                    continue
+                try:
+                    email = validator.clean(token).lower()
+                except forms.ValidationError:
+                    invalid_lines.append(number)
+                    continue
+                if email not in emails:
+                    emails.append(email)
+        if invalid_lines:
+            lines = ', '.join(str(number) for number in sorted(set(invalid_lines)))
+            raise forms.ValidationError(
+                f'Check line(s) {lines}: paste email addresses only, without column headings or names. '
+                'No invitations have been added. Correct these lines and submit again.')
         if not 1 <= len(emails) <= 500:
-            raise forms.ValidationError('Enter between 1 and 500 email addresses.')
-        for email in emails:
-            validator.clean(email)
+            raise forms.ValidationError('Enter between 1 and 500 unique email addresses.')
         return emails
 
 
@@ -60,7 +76,8 @@ class InternAccessAdmin(admin.ModelAdmin):
                         created_count += 1
                         AuditEvent.objects.create(actor=request.user, action='access_change', object_id=str(grant.pk),
                             details={'after': {'email': grant.email, 'expires_at': str(grant.expires_at), 'reason': grant.reason}})
-            messages.success(request, f'Granted one-year access to {created_count} new interns. Existing grants were kept; edit them individually to extend or revoke.')
+            existing_count = len(form.cleaned_data['emails']) - created_count
+            messages.success(request, f'Processed {len(form.cleaned_data["emails"])} unique addresses: granted one-year access to {created_count} new interns; {existing_count} already had grants. Existing grants were kept; edit them individually to extend or revoke.')
             return redirect(reverse('admin:users_internaccess_changelist'))
         context = {**self.admin_site.each_context(request), 'form': form, 'title': 'Invite semester interns', 'opts': self.model._meta}
         return render(request, 'admin/users/internaccess/invite.html', context)

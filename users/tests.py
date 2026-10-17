@@ -470,6 +470,23 @@ class ClinicalWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(InternAccess.objects.count(), 2)
 
+    def test_roster_paste_formats_and_invalid_lines(self):
+        from .admin import SemesterInviteForm
+        for text in ('FIRST@example.test\r\nSECOND@example.test',
+                     'FIRST@example.test\tSECOND@example.test',
+                     'FIRST@example.test; SECOND@example.test, first@example.test'):
+            form = SemesterInviteForm({'emails': text, 'reason': 'Synthetic roster'})
+            self.assertTrue(form.is_valid(), form.errors)
+            self.assertEqual(form.cleaned_data['emails'], ['first@example.test', 'second@example.test'])
+        self.intern.is_staff = True
+        self.intern.save()
+        self.intern.user_permissions.add(Permission.objects.get(codename='add_internaccess'))
+        response = self.client.post(reverse('admin:users_internaccess_invite'), {
+            'emails': 'Email heading\r\nvalid@example.test\r\nbroken-address', 'reason': 'Synthetic roster'})
+        self.assertContains(response, 'Check line(s) 1, 3:')
+        self.assertContains(response, 'No invitations have been added.')
+        self.assertFalse(InternAccess.objects.filter(email='valid@example.test').exists())
+
 
 @skipUnless(connection.vendor == 'postgresql', 'Concurrent quota verification requires PostgreSQL; covered in CI.')
 class ConcurrentQuotaTests(TransactionTestCase):

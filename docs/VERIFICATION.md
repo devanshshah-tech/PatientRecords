@@ -1,5 +1,9 @@
 # Verification record
 
+## Spreadsheet intern invitations ? 17 October 2026
+
+Capitalization was already normalized. Expanded roster parsing to accept spreadsheet tabs and whitespace plus comma/semicolon separators, retaining newline columns, duplicate removal, the 500-unique-address limit and all-or-nothing validation. Invalid input now identifies line numbers without echoing account lists; results distinguish new grants from existing ones. Regression covers Excel CRLF/tab pastes, mixed-case duplicates, multiple invalid lines and no partial grant creation. Local suite: 51 tests completed, 50 passed and one PostgreSQL-only concurrency skip. Build checks and migration consistency passed with synthetic development settings. The first dotenv-disabled build omitted DEBUG/SECRET_KEY and failed closed as intended; rerunning with explicit development DEBUG passed. No live roster or access grants were changed during testing.
+
 ## Visit navigation, upload feedback and test reset ? 16 October 2026
 
 At the operator's request, removed all public-preview clinical rows: one patient, two visits and six photo references. Preserved accounts and access grants, and left the original Drive files for the operator to remove. Removed the preview Neon branch expiration; no scheduled expiry remains. Free usage remains subject to provider quotas and terms.
