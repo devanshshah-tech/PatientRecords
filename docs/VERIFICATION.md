@@ -1,5 +1,11 @@
 # Verification record
 
+## Visit navigation, upload feedback and test reset ? 16 October 2026
+
+At the operator's request, removed all public-preview clinical rows: one patient, two visits and six photo references. Preserved accounts and access grants, and left the original Drive files for the operator to remove. Removed the preview Neon branch expiration; no scheduled expiry remains. Free usage remains subject to provider quotas and terms.
+
+Separated private single-visit galleries from patient-wide comparisons, grouped search results per patient, and added visible back/home links. Age remains a snapshot per visit. Fixed fetch consuming the upload success message by returning a JSON 201 navigation response; ordinary form submissions retain redirects and validation failures remain visible. Local verification: 50 Django tests completed (49 passed, one PostgreSQL-only concurrency skip), nine camera tests passed. Regression tests cover single-visit isolation, doctor/intern authorization, private caching, grouped comparisons and success feedback after navigation.
+
 ## Capture removal count and Drive preview activation — 16 October 2026
 
 Fixed stale capture counts by updating the live status on both capture and removal, with singular/zero states. Added the reported four-to-one removal and subsequent capture regression; all eight camera tests passed. All 48 Django tests completed (47 passed, one PostgreSQL-only concurrency test skipped). Updated the preview notice to describe saving availability dynamically instead of always saying storage is unavailable. The preview database has no legacy filesystem photo references, so Drive activation needs no reference migration. Synthetic-only guidance remains until the clinical launch gates pass.

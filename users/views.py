@@ -12,7 +12,7 @@ from .models import Patient, Photo, AuditEvent, Visit
 from .services import compress_photos, save_submission
 from .identity import display_name, display_role
 from .drive_storage import DriveStorageError
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_GET
 
 
@@ -51,7 +51,23 @@ def doctor_search(request):
                 query = query.filter(**{lookup: value})
         visits = list(query[:50])
         AuditEvent.objects.create(actor=request.user, action='record_search', object_id='', details={'fields': [k for k, v in form.cleaned_data.items() if v]})
-    return render(request, 'doctor_search.html', {'form': form, 'visits': visits, 'searched': searched})
+    groups = {}
+    for visit in visits:
+        group = groups.setdefault(visit.patient_id, {'patient': visit.patient,
+            'name': visit.details.get('name_of_patient', ''), 'visits': []})
+        group['visits'].append(visit)
+    return render(request, 'doctor_search.html', {'form': form, 'visits': visits,
+        'patient_groups': list(groups.values()), 'searched': searched})
+
+
+@login_required
+@require_GET
+def visit_detail(request, visit_id):
+    if not can_review(request.user):
+        raise PermissionDenied
+    visit = get_object_or_404(Visit.objects.select_related('patient').prefetch_related('photos'), pk=visit_id)
+    AuditEvent.objects.create(actor=request.user, action='visit_view', object_id=str(visit.pk))
+    return render(request, 'visit_detail.html', {'visit': visit})
 
 
 @login_required
@@ -69,7 +85,10 @@ def submit_patient_details(request):
         except DriveStorageError:
             form.add_error(None, 'Photo storage is temporarily unavailable. Please retry; contact your administrator if this continues.')
         else:
-            messages.success(request, 'Patient record and photographs saved securely.')
+            count = len(photos)
+            messages.success(request, f'Patient record and photographs saved securely. {count} photograph' + ('s' if count != 1 else '') + ' uploaded.')
+            if 'application/json' in request.headers.get('Accept', ''):
+                return JsonResponse({'redirect_url': '/'}, status=201)
             return redirect('index')
     return render(request, 'patient_form.html', {'form': form})
 

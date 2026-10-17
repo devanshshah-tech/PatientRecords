@@ -242,6 +242,9 @@ class ClinicalWorkflowTests(TestCase):
         response = self.client.post(reverse('doctor_search'), {'opd_number': 'OPD-1', 'diagnosis': 'injury'})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context['visits']), 3)
+        self.assertEqual(len(response.context['patient_groups']), 2)
+        self.assertContains(response, 'View this visit', count=3)
+        self.assertContains(response, 'Compare across visits', count=2)
         response = self.client.post(reverse('comparison'), {'patient_id': 'TEST-001',
             'photos': [str(first.photos.get().pk), str(second.photos.get().pk)]})
         self.assertEqual(len(response.context['selected']), 2)
@@ -250,6 +253,34 @@ class ClinicalWorkflowTests(TestCase):
         self.assertEqual(response.context['selected'], [])
         response = self.client.post(reverse('comparison'), {'patient_id': 'TEST-001', 'photos': ['x' * 36]})
         self.assertEqual(response.status_code, 200)
+
+    def test_single_visit_view_is_private_and_does_not_include_other_visit_photos(self):
+        first = self.create_visit(age=24)
+        second = self.create_visit(age=25)
+        url = reverse('visit_detail', args=[first.pk])
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.client.force_login(self.doctor)
+        response = self.client.get(url)
+        self.assertContains(response, 'Age at visit: 24')
+        self.assertContains(response, reverse('private_photo', args=[first.photos.get().pk]))
+        self.assertNotContains(response, reverse('private_photo', args=[second.photos.get().pk]))
+        self.assertEqual(response.headers['Cache-Control'], 'no-store, private')
+        self.client.logout()
+        self.assertEqual(self.client.get(url).status_code, 302)
+
+    def test_fetch_success_message_survives_navigation_and_failures_preserve_form_errors(self):
+        data = submission()
+        data['patient_images'] = synthetic_photo()
+        response = self.client.post(reverse('submit_patient_details'), data, HTTP_ACCEPT='application/json')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json(), {'redirect_url': '/'})
+        home = self.client.get(reverse('index'))
+        self.assertContains(home, 'Patient record and photographs saved securely. 1 photograph uploaded.')
+        invalid = submission(patient_id='')
+        invalid['patient_images'] = synthetic_photo()
+        response = self.client.post(reverse('submit_patient_details'), invalid, HTTP_ACCEPT='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['form'].errors)
 
     def test_google_invitation_requires_verified_email(self):
         login = SocialLogin(user=get_user_model()(username='new'),

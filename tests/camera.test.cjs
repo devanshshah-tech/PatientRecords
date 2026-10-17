@@ -133,6 +133,17 @@ test('login redirect is not treated as successful save', async () => {
   assert.match(b.ids['submit-status'].textContent, /session ended/);
 });
 
+test('JSON save confirmation navigates without fetching away the success message', async () => {
+  const b = browser();
+  b.state.response = {status:201, json:async () => ({redirect_url:'/'})};
+  await b.ids['start-camera'].emit('click');
+  await b.ids['capture-photo'].emit('click');
+  await b.ids['patient-form'].emit('submit');
+  assert.equal(b.state.submissions[0].headers.Accept, 'application/json');
+  assert.deepEqual(b.state.navigations, ['/']);
+  assert.equal(b.state.revoked.length, 1);
+});
+
 test('backgrounding stops camera, leaving the page clears in-memory previews', async () => {
   const b = browser();
   await b.ids['start-camera'].emit('click');

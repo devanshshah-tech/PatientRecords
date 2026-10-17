@@ -3,7 +3,8 @@
 {% block content %}
 <section class="card">
   <p class="eyebrow">Doctor workspace</p><h1>Compare visits</h1>
-  <a href="{% url 'doctor_search' %}">Find a patient record</a>
+  <a class="button secondary" href="{% url 'doctor_search' %}">Back to patient records</a>
+  <a class="button secondary" href="{% url 'index' %}">Back to home</a>
   <form method="post">{% csrf_token %}
     <label for="patient-id">UHID / Case No.</label><input id="patient-id" name="patient_id" value="{{ patient.patient_id }}" maxlength="100" required>
     <button>Find photographs</button>

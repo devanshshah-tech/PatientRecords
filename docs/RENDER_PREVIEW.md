@@ -1,8 +1,8 @@
 # Render preview release
 
-The public preview is authorized for synthetic testing before Drive consent. It uses a separate schema-only Neon database (`render-preview`), expiring after 14 days, and contains no copied patient records. Renew or replace it explicitly before expiry. The local production-linked environment remains unchanged.
+The public preview uses a separate schema-only Neon database (`render-preview`) with no copied patient records. Its original temporary expiry was removed at the operator's request; it now has no scheduled expiration. Neon Free remains subject to current usage quotas and provider terms, not a 14-day data-retention limit. The local production-linked environment remains unchanged.
 
-`render.yaml` describes the free Singapore Python service with manual deploys. Its defaults disable saving server-side even if JavaScript is bypassed. After Drive authorization and storage verification, the existing service may override `PHOTO_STORAGE=drive` and `CLINICAL_UPLOADS_ENABLED=true` for synthetic visit tests. `PREVIEW_MODE=true` continues to display testing guidance, with storage availability reflected accurately. Do not photograph patients or enter their details before clinical launch gates pass.
+`render.yaml` describes the free Singapore Python service with manual deploys. Its defaults disable saving server-side even if JavaScript is bypassed. After Drive authorization and storage verification, the existing service may override `PHOTO_STORAGE=drive` and `CLINICAL_UPLOADS_ENABLED=true` for synthetic visit tests. The global preview notice was removed at the operator's request; operational launch gates still apply. Do not photograph patients or enter their details before clinical launch gates pass.
 
 The service binds to Render's assigned PORT on 0.0.0.0 and trusts only the forwarded HTTPS scheme from its managed reverse proxy. Do not enable TRUST_HTTPS_PROXY on a directly exposed server. `/health/` reports HTTP readiness only, not database or storage health. Start-up applies migrations through the direct database connection; requests use the pooled connection.
 

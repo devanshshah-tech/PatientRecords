@@ -77,7 +77,12 @@
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 120000);
     try {
-      const response = await fetch(form.action, {method:'POST', body:data, credentials:'same-origin', signal:controller.signal});
+      const response = await fetch(form.action, {method:'POST', body:data, credentials:'same-origin', headers:{'Accept':'application/json'}, signal:controller.signal});
+      if (response.status === 201) {
+        const result = await response.json();
+        if (result.redirect_url !== '/') throw new Error('Unexpected save response. Please check your records before retrying.');
+        photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; window.location.assign(result.redirect_url); return;
+      }
       if (response.redirected) {
         if (new URL(response.url).pathname !== '/') throw new Error('Your session ended. Sign in again before resubmitting.');
         photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; window.location.assign(response.url); return;
