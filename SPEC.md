@@ -28,7 +28,7 @@ Server validates image format, decoded dimensions, request size, image count, an
 
 ## Delivery plan and gates
 
-After live Drive checks pass, the public preview may enable synthetic visit saving through the private Drive backend. Keep the synthetic-only banner until clinical launch gates pass, but never show a storage-disabled statement when saving is enabled. Capture counts must update immediately on both add and remove, including zero and singular states.
+After live Drive checks pass, the public preview may enable synthetic visit saving through the private Drive backend. At the operator's request, omit the global preview banner from the interface. Deployment stage and remaining clinical launch gates are documented operationally. Capture counts must update immediately on both add and remove, including zero and singular states.
 
 16 October preview authorization: publish the reviewed code, run GitHub CI, deploy a synthetic-only Render preview and connect records.bulkhead.cc before Drive consent is available. Render defaults to camera preview only: server-side submissions are disabled until external storage is verified and the clinical launch gates pass. Phone camera capture can be tested without persisting photographs. Auto-deploy stays off; releases are manually approved. No real records are imported or submitted in this phase.
 
