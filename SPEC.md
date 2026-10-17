@@ -47,7 +47,7 @@ Provider subscription details supplied by the user: app.ahmcsrksm.in, plan label
 
 Need clinic decisions: expected patients/photos per month, available disk and RAM, server OS, domain/DNS, backup destination, lawful retention and consent process, doctor roster, existing records recovery, and whether patient IDs are unique across locations. Delete/retention and account lifecycle must be approved before real data ingestion.
 
-Earlier Plesk discovery: only MariaDB and MSSQL Server were available in the Windows subscription's database-server selector. MariaDB was considered for adaptation but no database switch was implemented. Later Linux SSH connectivity remained unresolved, leading to the current Neon/Render investigation. The bounded terminal/process experiment remains documented in docs/HOSTING_PROBE.md. The clinic account lacks Shared Drives; OAuth My Drive storage is now implemented but disabled, with account authorization and live verification pending.
+Earlier Plesk discovery: only MariaDB and MSSQL Server were available in the Windows subscription's database-server selector. MariaDB was considered for adaptation but no database switch was implemented. Later Linux SSH connectivity remained unresolved, leading to the current Neon/Render investigation. The bounded terminal/process experiment remains documented in docs/HOSTING_PROBE.md. The clinic account lacks Shared Drives. My Drive OAuth authorization and synthetic upload/read/delete/offline-refresh checks have now passed locally; switching storage and deploying credentials remain pending. Public preview saving is still disabled.
 
 ## Neon setup requested 15 October 2026
 

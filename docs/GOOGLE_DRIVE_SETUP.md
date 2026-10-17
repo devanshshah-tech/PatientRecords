@@ -1,6 +1,6 @@
 # Clinic My Drive OAuth storage
 
-Status: implementation added, disabled by default. No clinic account has been connected and no live Drive test has passed yet. Website Google sign-in remains separate.
+Status: clinic OAuth authorization completed locally. Real API synthetic upload, exact read-back, deletion and offline token refresh passed. The active photo backend is still filesystem; credentials have not been deployed to Render and public saving remains disabled. Website Google sign-in remains separate.
 
 ## Account setup
 
