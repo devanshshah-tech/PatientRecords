@@ -15,9 +15,12 @@ class ClosedAccountAdapter(DefaultAccountAdapter):
 
 class InvitedSocialAdapter(DefaultSocialAccountAdapter):
     def can_authenticate_by_email(self, login, email):
-        # Google is authoritative for Gmail addresses. Keep automatic email
-        # matching restricted to uniquely preauthorized accounts.
-        if login.account.provider != 'google' or not email.lower().endswith('@gmail.com'):
+        # Google is authoritative for Gmail and verified Workspace identities
+        # carrying its hosted-domain claim. An arbitrary third-party Google
+        # account's email_verified flag alone is insufficient for linking.
+        profile = login.account.extra_data or {}
+        authoritative = email.lower().endswith('@gmail.com') or bool(profile.get('hd'))
+        if login.account.provider != 'google' or not authoritative:
             return False
         if not any(e.verified and e.email.lower() == email.lower() for e in login.email_addresses):
             return False

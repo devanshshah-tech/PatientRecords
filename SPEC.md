@@ -10,7 +10,7 @@ The current form labels are UHID / Case No. (required), Aadhar/ABHA ID (optional
 
 Doctor retrieval also supports exact OPD/case-year filters and partial patient-name/diagnosis search, replacing the old email-subject convention. PostgreSQL indexes patient IDs and OPD/year columns. Storage is swappable between private files and a private S3-compatible endpoint. MinIO community upstream is archived as of the current review; lakeFS is an extra versioning layer, not the underlying store. See docs/STORAGE.md for evaluated options.
 
-Operator provisioning may create a doctor account before its first Google login. Email authentication may match exactly one active, preauthorized local account only when Google verifies the matching Gmail address. Unverified identities, other providers, ambiguous matches and ordinary staff accounts cannot use this bootstrap path. Intern invitations retain their one-year default; no account is marked email-verified merely by provisioning it.
+Operator provisioning may create a doctor account before its first Google login. Email authentication may match exactly one active, preauthorized local account only when Google verifies the matching Gmail address or Workspace identity with Google's hosted-domain claim. Unverified identities, third-party addresses without that claim, other providers, ambiguous matches and ordinary staff accounts cannot use this bootstrap path. Intern invitations retain their one-year default; no account is marked email-verified merely by provisioning it.
 
 After an authorized Google login resolves a pre-created account, persist the matching Google-verified email for subsequent protected-request checks. Reject email ownership conflicts; never synthesize verification from an invitation or a local session.
 

@@ -297,6 +297,25 @@ class ClinicalWorkflowTests(TestCase):
         self.assertEqual(login.user.pk, self.doctor.pk)
         self.assertTrue(InvitedSocialAdapter().allowed(login))
 
+    def test_workspace_doctor_bootstrap_requires_hosted_domain_and_verified_email(self):
+        self.doctor.email = 'doctor@clinic.example.test'
+        self.doctor.save()
+        login = SocialLogin(user=get_user_model()(username='new-workspace'),
+            account=SocialAccount(provider='google', uid='synthetic-workspace',
+                extra_data={'hd': 'clinic.example.test'}),
+            email_addresses=[EmailAddress(email=self.doctor.email, verified=True)])
+        adapter = InvitedSocialAdapter()
+        self.assertTrue(adapter.can_authenticate_by_email(login, self.doctor.email))
+        login.lookup()
+        self.assertEqual(login.user.pk, self.doctor.pk)
+        adapter.pre_social_login(None, login)
+        self.assertTrue(EmailAddress.objects.filter(user=self.doctor, verified=True).exists())
+        login.account.extra_data = {}
+        self.assertFalse(adapter.can_authenticate_by_email(login, self.doctor.email))
+        login.account.extra_data = {'hd': 'clinic.example.test'}
+        login.email_addresses[0].verified = False
+        self.assertFalse(adapter.can_authenticate_by_email(login, self.doctor.email))
+
     def test_precreated_intern_retains_google_verification_for_protected_requests(self):
         user = get_user_model().objects.create_user('precreated', email='precreated@gmail.com')
         grant = InternAccess.objects.create(email=user.email, reason='Synthetic preauthorization')

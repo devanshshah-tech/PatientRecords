@@ -1,5 +1,9 @@
 # Verification record
 
+## Workspace doctor account — 16 October 2026
+
+Provisioned the operator-requested clinic Workspace identity as a doctor/admin in both the local-linked and isolated public-preview databases, preserving prior accounts and intern grant dates. Removed the provisioning command's Gmail-only limit. Email linking now accepts Google-verified Workspace addresses carrying Google's hosted-domain claim, while requiring the same unique active preauthorized account and explicit doctor permission. Synthetic regression covers successful Workspace lookup, verification persistence, absent hosted-domain denial and unverified-email denial. All 48 tests completed (47 passed, one PostgreSQL-only concurrency test skipped). Real account emails and credentials are not committed.
+
 ## Public preview preparation — 16 October 2026
 
 User authorized GitHub publication, CI, Render preview and the records.bulkhead.cc domain before Drive authorization. Added a schema-only preview database without copied records, preview guidance, a server-side submission kill switch, a camera-only UI, a health endpoint, and managed-proxy HTTPS handling. Render Blueprint validates. Gitleaks staged scan passed. Local Django tests: 47 discovered, 46 passed, PostgreSQL-only concurrency test skipped. Camera tests: 7 passed, including preview capture without any outgoing upload. GitHub and Render release evidence is recorded after remote verification; Drive remains disconnected and clinical launch gates remain pending.

@@ -23,8 +23,6 @@ class Command(BaseCommand):
         intern_email = options['intern_email'].strip().lower()
         for email in (doctor_email, intern_email):
             validate_email(email)
-            if not email.endswith('@gmail.com'):
-                raise CommandError('This bootstrap supports Google-verified Gmail accounts only.')
         if doctor_email == intern_email:
             raise CommandError('Doctor and intern must be separate accounts.')
         User = get_user_model()
