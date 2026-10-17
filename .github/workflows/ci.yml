@@ -1,0 +1,80 @@
+name: Clinical records checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  DJANGO_LOAD_ENV_FILES: 'false'
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    env:
+      DJANGO_DEBUG: 'true'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.lock
+      - run: python -m pip install -r requirements.lock
+      - run: python manage.py check
+      - run: python manage.py makemigrations --check --dry-run
+      - run: python manage.py test users
+      - run: python manage.py test patientrecords.tests
+      - run: python manage.py collectstatic --noinput
+      - run: node --check static/users/camera.js
+      - run: node --test tests/camera.test.cjs
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: clinical_ci
+          POSTGRES_USER: clinical_ci
+          POSTGRES_PASSWORD: synthetic-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DJANGO_DEBUG: 'true'
+      DB_NAME: clinical_ci
+      DB_USER: clinical_ci
+      DB_PASSWORD: synthetic-ci-only
+      DB_HOST: 127.0.0.1
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.lock
+      - run: python -m pip install -r requirements.lock
+      - run: python manage.py migrate --noinput
+      - run: python manage.py test users
+      - run: python manage.py test patientrecords.tests
+      - name: Production settings gate with synthetic credentials
+        env:
+          DJANGO_DEBUG: 'false'
+          DJANGO_SECRET_KEY: 'synthetic-ci-secret-key-for-deployment-check-only-1234567890'
+          DJANGO_ALLOWED_HOSTS: records.example.test
+          DJANGO_CSRF_TRUSTED_ORIGINS: https://records.example.test
+        run: python manage.py check --deploy --fail-level WARNING
+      - run: python -m pip install pip-audit
+      - run: python -m pip_audit -r requirements.lock

@@ -1,160 +1,28 @@
 {% extends 'base_entrance.html' %}
-
-{% block title %}
-    Patient Form
-{% endblock %}
-
+{% load static %}
+{% block title %}New patient visit{% endblock %}
 {% block content %}
-<div id="patient-form-container">
-    <div class="patient-form-container">
-        <h2>Patient Form</h2>
-        <form id="patient-form" method="POST" enctype="multipart/form-data" action="{% url 'submit_patient_details' %}">
-            {% csrf_token %}
-            {{ form.as_p }}
-
-            <!-- Custom file button and label -->
-            <label for="patient_image_input" class="custom-file-button">
-                Upload Images of Patient's Condition
-            </label>
-
-            <div class="checkbox-container">
-                <input type="checkbox" id="agree-checkbox">
-                <label for="agree-checkbox">I have taken consent of the patient.</label>
-            </div>
-
-            <div id="image-fields">
-                <label for="patient_image_input" class="custom-file-button">Click Photo(s):</label>
-                <input 
-                    type="file" 
-                    id="patient_image_input" 
-                    name="patient_images" 
-                    accept="image/*" 
-                    capture="environment" 
-                    class="image-input" 
-                    multiple 
-                    onchange="handleFileSelect(event)"
-                >
-            </div>
-
-            <div id="selected-images-container"></div>
-
-            <br><br>
-            
-            <button id="submit-button" type="submit">Submit</button>
-            <a href="{% url 'index' %}">
-                <button type="button">Back</button>
-            </a>
-        </form>
-    </div>
-</div>
-
-    <script>
-        let filesArray = [];
-
-        function handleFileSelect(event) {
-            const files = Array.from(event.target.files);
-            const maxCombinedSize = 25 * 1024 * 1024;
-            let totalSize = filesArray.reduce((sum, file) => sum + file.size, 0);
-            let filesAdded = false;
-        
-            for (let file of files) {
-                if (totalSize + file.size > maxCombinedSize) {
-                    alert(
-                        `Adding "${file.name}" exceeds the total file size limit of 25 MB. It will not be added.`
-                    );
-                    continue;
-                }
-        
-                filesArray.push(file);
-                totalSize += file.size;
-                displayFile(file);
-                filesAdded = true;
-            }
-        
-            if (!filesAdded) {
-                event.target.value = '';
-            }
-        
-            syncFileInput();
-        }
-
-        function displayFile(file) {
-            const container = document.getElementById('selected-images-container');
-        
-            const imageContainer = document.createElement('div');
-            imageContainer.className = 'image-preview-container';
-            imageContainer.style.position = 'relative';
-
-            const img = document.createElement('img');
-            img.className = 'image-preview';
-            img.src = URL.createObjectURL(file);
-            img.onload = function() {
-                URL.revokeObjectURL(this.src);
-            };
-            img.width = 150;
-            img.height = 150;
-        
-            const removeButton = document.createElement('button');
-            removeButton.className = 'remove-image';
-            removeButton.innerText = 'X';
-            removeButton.style.position = 'absolute';
-            removeButton.style.top = '5px';
-            removeButton.style.right = '5px';
-            removeButton.addEventListener('click', () => removeFile(file, imageContainer));
-        
-            imageContainer.appendChild(img);
-            imageContainer.appendChild(removeButton);
-        
-            container.appendChild(imageContainer);
-        }
-
-        function removeFile(file, imageContainer) {
-            filesArray = filesArray.filter(f => f !== file);
-            imageContainer.remove();
-            syncFileInput();
-        }
-
-        function syncFileInput() {
-            const fileInput = document.getElementById('patient_image_input');
-    
-            const dataTransfer = new DataTransfer();
-    
-            filesArray.forEach(file => dataTransfer.items.add(file));
-    
-            fileInput.files = dataTransfer.files;
-    
-            updateFileCount();
-        }
-
-        function updateFileCount() {
-            const fileCountDisplay = document.getElementById('file-count');
-            if (fileCountDisplay) {
-                fileCountDisplay.textContent = `${filesArray.length} file(s) selected`;
-            }
-        }
-
-        document.getElementById('patient-form').addEventListener('submit', function (event) {
-            if (filesArray.length === 0) {
-                alert('Please upload at least one image.');
-                event.preventDefault();
-                return;
-            }
-        
-            // Append files to FormData manually
-            const formData = new FormData(this);
-            filesArray.forEach((file, index) => {
-                formData.append(`patient_images_${index}`, file);
-            });
-
-            const checkbox = document.getElementById('agree-checkbox');
-            if (!checkbox.checked) {
-                alert('You must agree to the confirmation statement before submitting the form.');
-                event.preventDefault();
-            }
-
-            const submitButton = document.getElementById('submit-button');
-            submitButton.disabled = true;
-            submitButton.textContent = 'Submitting...';
-        });
-    </script>    
+<section class="card">
+  <p class="eyebrow">New visit</p><h1>Document the patient’s condition</h1>
+  <p>Use the same UHID / Case No. at each visit. Photograph visible injuries or conditions only after obtaining consent.</p>
+  {% if not uploads_enabled %}<p class="notice">Camera preview is available for testing with objects only. Visits and photographs cannot be saved yet.</p>{% endif %}
+  <form id="patient-form" method="post" data-uploads-enabled="{{ uploads_enabled|yesno:'true,false' }}" action="{% url 'submit_patient_details' %}">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <fieldset><legend>Clinical photographs</legend>
+      <p>Captures stay in memory until submission. Up to 10 photos per visit. Keep the area in focus and use consistent lighting and angles for follow-up.</p>
+      <div class="actions">
+        <button type="button" id="start-camera">Open camera</button>
+        <button type="button" id="capture-photo" disabled>Take photograph</button>
+        <button type="button" id="stop-camera" class="secondary" disabled>Close camera</button>
+      </div>
+      <video id="camera-preview" autoplay muted playsinline hidden></video>
+      <p id="camera-status" role="status" aria-live="polite"></p>
+      <div id="photo-previews" class="gallery"></div>
+    </fieldset>
+    <p id="submit-status" role="alert"></p>
+    <div class="actions"><button id="submit-button"{% if not uploads_enabled %} disabled{% endif %}>Save patient visit</button><a href="{% url 'index' %}">Back</a></div>
+  </form>
+</section>
+<script src="{% static 'users/camera.js' %}" defer></script>
 {% endblock %}

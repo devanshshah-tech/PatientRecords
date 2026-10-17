@@ -28,5 +28,3 @@ urlpatterns = [
     path('', include("users.urls")),  # User-defined views
     path('login/', user_login_redirect, name="login"),  # Custom login route for users
 ]
-
-handler404 = 'users.urls.custom_404_view'

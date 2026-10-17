@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: clinical-records-preview
+    runtime: python
+    region: singapore
+    plan: free
+    autoDeployTrigger: off
+    buildCommand: pip install -r requirements.lock && python manage.py check --deploy --fail-level WARNING && python manage.py collectstatic --noinput
+    startCommand: python scripts/render_start.py
+    healthCheckPath: /health/
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.13
+      - key: DJANGO_DEBUG
+        value: 'false'
+      - key: DJANGO_LOAD_ENV_FILES
+        value: 'false'
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_ALLOWED_HOSTS
+        value: records.bulkhead.cc
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        value: https://records.bulkhead.cc
+      - key: BIND_HOST
+        value: 0.0.0.0
+      - key: TRUST_HTTPS_PROXY
+        value: 'true'
+      - key: PREVIEW_MODE
+        value: 'true'
+      - key: CLINICAL_UPLOADS_ENABLED
+        value: 'false'
+      - key: PHOTO_STORAGE
+        value: filesystem
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_UNPOOLED
+        sync: false
+      - key: SOCIAL_AUTH_GOOGLE_CLIENT_ID
+        sync: false
+      - key: SOCIAL_AUTH_GOOGLE_SECRET
+        sync: false

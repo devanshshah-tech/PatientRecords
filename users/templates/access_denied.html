@@ -1,0 +1,18 @@
+{% extends 'base_entrance.html' %}
+{% block title %}Choose another account | Anand Hospital{% endblock %}
+{% block content %}
+<section class="card" aria-labelledby="access-title">
+  <p class="eyebrow">Account access</p>
+  <h1 id="access-title">Let's try another account</h1>
+  <p>This Google account could not be authorized for the clinical workspace.</p>
+  <p>Use the account approved by your administrator. An active invitation and a verified Google email are required.</p>
+  <div class="actions">
+    <form method="post" action="{% url 'google_login' %}">
+      {% csrf_token %}
+      <button type="submit">Try another Google account</button>
+    </form>
+    <a class="button secondary" href="{% url 'index' %}">Back to home</a>
+  </div>
+  <p class="helptext">Already using the correct account? Ask your administrator to check your invitation, access dates or account setup.</p>
+</section>
+{% endblock %}

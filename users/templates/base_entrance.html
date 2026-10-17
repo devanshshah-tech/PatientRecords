@@ -1,163 +1,22 @@
 {% load static %}
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <title>{% block title %}{% endblock %}</title>
-    <meta name="description" content="" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-  </head>
-
-  <style>
-    #patient-form-container {
-        font-family: Arial, sans-serif;
-        background-color: #fff;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        width: 100%;
-        max-width: 600px;
-        margin: 20px auto; /* Center the container */
-    }
-
-    /* Center the form within the container if desired */
-    #patient-form-container #patient-form {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-    }
-
-    #patient-form-container form p {
-        margin: 10px 0;
-    }
-
-    #patient-form-container #patient_image_input {
-      display: none;
-    }
-
-    /* Custom file button style */
-    #patient-form-container .custom-file-button {
-      display: inline-block;
-      background-color: #007bff;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
-      text-align: center;
-      border: none;
-    }
-
-    #patient-form-container label {
-        display: block;
-        font-weight: bold;
-        margin-bottom: 5px;
-    }
-
-    #patient-form-container .custom-file-button:hover {
-      background-color: #0056b3;
-    }
-
-    #patient-form-container .checkbox-container {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    /* Headings, scoped to this container only */
-    #patient-form-container h1,
-    #patient-form-container h2,
-    #patient-form-container h3 {
-      text-align: center;
-      color: #4caf50;
-    }
-
-    /* Inputs, textareas, selects inside the container */
-    #patient-form-container input,
-    #patient-form-container textarea,
-    #patient-form-container select {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 15px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-sizing: border-box;
-    }
-
-    /* Buttons inside the container */
-    #patient-form-container button {
-      background-color: #4caf50;
-      color: white;
-      padding: 10px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 16px;
-      margin-top: 10px;
-    }
-
-    #patient-form-container button:hover {
-      background-color: #45a049;
-    }
-
-    /* Message styling (success/error) */
-    .message {
-      padding: 10px;
-      border-radius: 4px;
-      margin-bottom: 10px;
-    }
-
-    .message.success {
-      background-color: #d4edda;
-      color: #155724;
-    }
-
-    .message.error {
-      background-color: #f8d7da;
-      color: #721c24;
-    }
-
-    /* Image preview container */
-    #patient-form-container .image-preview-container {
-      display: inline-block;
-      margin: 10px;
-      position: relative;
-    }
-
-    /* Image previews */
-    #patient-form-container .image-preview {
-      display: block;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-    }
-
-    /* Remove (X) button on the images */
-    #patient-form-container .remove-image {
-      position: absolute;
-      top: 5px;
-      right: 5px;
-      background-color: red;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      width: 25px;
-      height: 25px;
-      font-size: 16px;
-      text-align: center;
-      line-height: 25px;
-      cursor: pointer;
-      padding: 0;
-    }
-  </style>
-  <body>
-    {% if messages %}
-    <div class="messages">
-      {% for message in messages %}
-      <div class="message {{ message.tags }}">{{ message }}</div>
-      {% endfor %}
-    </div>
-    {% endif %} {% block content %} {% endblock %}
-  </body>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="same-origin">
+  <title>{% block title %}Patient records{% endblock %}</title>
+  <link rel="icon" href="{% static 'favicon.ico' %}" sizes="any">
+  <link rel="stylesheet" href="{% static 'users/app.css' %}">
+</head>
+<body>
+  <header><a href="{% url 'index' %}" class="brand">Clinical records</a><span>Patient documentation</span></header>
+  <main>
+    {% if preview_mode %}<p class="notice" role="status">Preview for testing only. Do not enter patient information or photograph patients. Saving visits is disabled until private storage is ready.</p>{% endif %}
+    <div class="hospital-identity"><img src="{% static 'Hospital_Logo.jpg' %}" alt="Anand Hospital" width="702" height="198"></div>
+    {% for message in messages %}<p role="status" class="notice">{{ message }}</p>{% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer>Use only for authorized clinical documentation. Obtain consent before taking photographs.</footer>
+</body>
 </html>

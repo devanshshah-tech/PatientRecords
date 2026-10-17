@@ -1,0 +1,5 @@
+{% extends 'admin/base_site.html' %}
+{% block content %}
+<p>Paste the authorized intern roster, one Google email per line. New grants last one calendar year. Existing access is kept; extend or revoke individual grants using their edit page.</p>
+<form method="post">{% csrf_token %}{{ form.as_p }}<input type="submit" value="Grant intern access"></form>
+{% endblock %}
