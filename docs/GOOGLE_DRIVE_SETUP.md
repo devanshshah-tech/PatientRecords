@@ -1,6 +1,6 @@
 # Clinic My Drive OAuth storage
 
-Status: clinic OAuth authorization completed locally. Real API synthetic upload, exact read-back, deletion and offline token refresh passed. The active photo backend is still filesystem; credentials have not been deployed to Render and public saving remains disabled. Website Google sign-in remains separate.
+Status: clinic OAuth authorization completed locally. Real API synthetic upload, exact read-back, deletion and offline token refresh passed. Deploy credentials through a Render secret file and verify the full synthetic web workflow before using that deployment. Website Google sign-in remains separate; clinical launch requires the documented operational gates.
 
 ## Account setup
 

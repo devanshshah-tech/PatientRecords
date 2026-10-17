@@ -12,7 +12,7 @@
 <body>
   <header><a href="{% url 'index' %}" class="brand">Clinical records</a><span>Patient documentation</span></header>
   <main>
-    {% if preview_mode %}<p class="notice" role="status">Preview for testing only. Do not enter patient information or photograph patients. Saving visits is disabled until private storage is ready.</p>{% endif %}
+    {% if preview_mode %}<p class="notice" role="status">Preview for testing only. Use fictional details and photographs of objects, not patients. {% if uploads_enabled %}Test visits can be saved to private storage.{% else %}Saving visits is disabled until private storage is ready.{% endif %}</p>{% endif %}
     <div class="hospital-identity"><img src="{% static 'Hospital_Logo.jpg' %}" alt="Anand Hospital" width="702" height="198"></div>
     {% for message in messages %}<p role="status" class="notice">{{ message }}</p>{% endfor %}
     {% block content %}{% endblock %}

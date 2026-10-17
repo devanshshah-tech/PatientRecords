@@ -13,6 +13,9 @@
   let stream = null;
   let photos = [];
   let busy = false;
+  function updatePhotoCount() {
+    status.textContent = photos.length === 1 ? '1 photograph ready.' : `${photos.length} photographs ready.`;
+  }
   function closeCamera() {
     if (stream) stream.getTracks().forEach(track => track.stop());
     stream = null; video.srcObject = null; video.hidden = true;
@@ -57,8 +60,8 @@
       const card = document.createElement('div'); card.className = 'photo-card';
       const img = document.createElement('img'); img.src = photo.url; img.alt = 'Captured clinical photograph';
       const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'secondary'; remove.textContent = 'Remove';
-      remove.addEventListener('click', () => {photos = photos.filter(p => p !== photo); URL.revokeObjectURL(photo.url); card.remove();});
-      card.append(img, remove); previews.append(card); status.textContent = `${photos.length} photograph(s) ready.`;
+      remove.addEventListener('click', () => {photos = photos.filter(p => p !== photo); URL.revokeObjectURL(photo.url); card.remove(); updatePhotoCount();});
+      card.append(img, remove); previews.append(card); updatePhotoCount();
     } catch (error) { status.textContent = 'Capture failed. Please try again.'; }
     finally { busy = false; capture.disabled = !stream; submit.disabled = !uploadsEnabled; }
   });

@@ -94,6 +94,18 @@ test('remove prevents submitting deleted capture and revokes its preview', async
   assert.equal(b.state.submissions.length, 0);
   assert.equal(b.state.revoked.length, 1);
   assert.match(b.ids['submit-status'].textContent, /at least one/);
+  assert.equal(b.ids['camera-status'].textContent, '0 photographs ready.');
+});
+
+test('photo count follows removal from four to one and the next capture', async () => {
+  const b = browser();
+  await b.ids['start-camera'].emit('click');
+  for (let i = 0; i < 4; i++) await b.ids['capture-photo'].emit('click');
+  assert.equal(b.ids['camera-status'].textContent, '4 photographs ready.');
+  for (let i = 0; i < 3; i++) b.ids['photo-previews'].children[i].children[1].emit('click');
+  assert.equal(b.ids['camera-status'].textContent, '1 photograph ready.');
+  await b.ids['capture-photo'].emit('click');
+  assert.equal(b.ids['camera-status'].textContent, '2 photographs ready.');
 });
 
 test('failed save preserves capture for safe retry and restores controls', async () => {
