@@ -4,6 +4,8 @@
 
 User authorized GitHub publication, CI, Render preview and the records.bulkhead.cc domain before Drive authorization. Added a schema-only preview database without copied records, preview guidance, a server-side submission kill switch, a camera-only UI, a health endpoint, and managed-proxy HTTPS handling. Render Blueprint validates. Gitleaks staged scan passed. Local Django tests: 47 discovered, 46 passed, PostgreSQL-only concurrency test skipped. Camera tests: 7 passed, including preview capture without any outgoing upload. GitHub and Render release evidence is recorded after remote verification; Drive remains disconnected and clinical launch gates remain pending.
 
+The first GitHub run (38990584448) passed clinical regressions on Windows and PostgreSQL but failed the separate CSRF template tests because a clean runner had no collected static manifest. The local manifest had hidden that test dependency. Corrected the isolated test class to use Django's plain static storage; production manifest storage remains unchanged.
+
 ## OAuth My Drive backend — 16 October 2026
 
 Added optional `PHOTO_STORAGE=drive`, private OAuth-backed upload/read/delete, opaque patient/visit folders and short file-ID references. Added operator-only Desktop OAuth setup with exact verified-owner checking, offline credentials in ignored `.secrets`, and a synthetic verification command. Setup never changes the active storage setting. Existing filesystem references fail explicitly until migrated; account-wide Drive permission and public file links are not used.

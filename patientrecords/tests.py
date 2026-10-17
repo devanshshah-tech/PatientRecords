@@ -22,6 +22,8 @@ urlpatterns = [path('csrf-probe/', csrf_probe, name='index')]
 
 @override_settings(ROOT_URLCONF=__name__, ALLOWED_HOSTS=['testserver'],
     SECURE_SSL_REDIRECT=False, CSRF_COOKIE_SECURE=False,
+    STORAGES={'default': {'BACKEND': 'users.storage.PrivateFileStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}},
     MIDDLEWARE=['django.middleware.security.SecurityMiddleware', 'django.middleware.csrf.CsrfViewMiddleware'])
 class FormOriginTests(SimpleTestCase):
     def setUp(self):
