@@ -6,6 +6,10 @@ At the operator's request, removed all public-preview clinical rows: one patient
 
 Separated private single-visit galleries from patient-wide comparisons, grouped search results per patient, and added visible back/home links. Age remains a snapshot per visit. Fixed fetch consuming the upload success message by returning a JSON 201 navigation response; ordinary form submissions retain redirects and validation failures remain visible. Local verification: 50 Django tests completed (49 passed, one PostgreSQL-only concurrency skip), nine camera tests passed. Regression tests cover single-visit isolation, doctor/intern authorization, private caching, grouped comparisons and success feedback after navigation.
 
+Release `77ff35d` passed Windows and PostgreSQL CI (39011733753 and 39011731433) and deployed as `dep-db9hu6ajnfac73cc0g50`. Live HTTPS checks passed JSON success feedback after navigation, private Drive persistence/delivery, intern denial, retry idempotency, two visits grouped under one patient and isolation of individual galleries. Synthetic verification files and rows were cleaned up; final public counts are zero patients, visits and photo references.
+
+The initial sandbox build could not reach Neon; rerunning with network permission passed. The first staged secret scan lacked Git safe-directory configuration; the corrected scan passed. The first live form request timed out before uploading; the longer-timeout retry passed.
+
 ## Capture removal count and Drive preview activation — 16 October 2026
 
 Fixed stale capture counts by updating the live status on both capture and removal, with singular/zero states. Added the reported four-to-one removal and subsequent capture regression; all eight camera tests passed. All 48 Django tests completed (47 passed, one PostgreSQL-only concurrency test skipped). Updated the preview notice to describe saving availability dynamically instead of always saying storage is unavailable. The preview database has no legacy filesystem photo references, so Drive activation needs no reference migration. Synthetic-only guidance remains until the clinical launch gates pass.
