@@ -1,3 +1,4 @@
+import logging
 import uuid
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -16,6 +17,22 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_GET
 from django.urls import reverse
 from django.db import DatabaseError
+
+
+logger = logging.getLogger(__name__)
+
+
+def record_save_failure(error):
+    if isinstance(error, DriveStorageError):
+        logger.warning("clinical_save_failed category=drive code=%s operation=%s http_status=%s",
+            error.diagnostic_code, error.operation, error.http_status)
+    elif isinstance(error, DatabaseError):
+        names = {"DatabaseError", "OperationalError", "IntegrityError", "ProgrammingError", "DataError",
+            "InternalError", "InterfaceError", "NotSupportedError"}
+        name = type(error).__name__
+        logger.warning("clinical_save_failed category=database code=%s", name if name in names else "DatabaseError")
+    else:
+        logger.warning("clinical_save_failed category=filesystem code=OSError")
 
 
 @never_cache
@@ -84,7 +101,8 @@ def submit_patient_details(request):
             visit = save_submission(request.user, form.cleaned_data, photos)
         except ValidationError as error:
             form.add_error(None, error)
-        except (DriveStorageError, DatabaseError, OSError):
+        except (DriveStorageError, DatabaseError, OSError) as error:
+            record_save_failure(error)
             form.add_error(None, "We couldn't save the visit and photos. Please try again. If this keeps happening, ask your administrator for help.")
         else:
             destination = reverse('submission_success', args=[visit.submission_id])

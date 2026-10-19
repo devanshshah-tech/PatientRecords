@@ -8,6 +8,8 @@ from pathlib import PurePosixPath
 from django.core.files.base import File
 from django.core.files.storage import Storage
 from google.auth.transport.requests import AuthorizedSession
+from google.auth.exceptions import RefreshError
+from requests.exceptions import Timeout, ConnectionError
 from google.oauth2.credentials import Credentials
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -18,14 +20,28 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file', 'openid',
 
 
 class DriveStorageError(OSError):
-    pass
+    CODES = {'storage_error', 'http_error', 'request_failed', 'request_timeout', 'connection_failed',
+        'auth_refresh_failed', 'credentials_unavailable', 'duplicate_folders', 'write_failed', 'cleanup_failed',
+        'storageQuotaExceeded', 'rateLimitExceeded', 'userRateLimitExceeded', 'authError', 'notFound',
+        'insufficientPermissions', 'backendError', 'forbidden'}
+    OPERATIONS = {'storage', 'folder_lookup', 'folder_create', 'photo_upload', 'id_allocation', 'metadata', 'download', 'cleanup'}
+
+    def __init__(self, message, *, diagnostic_code='storage_error', http_status=None, operation='storage'):
+        super().__init__(message)
+        self.diagnostic_code = diagnostic_code if diagnostic_code in self.CODES else 'storage_error'
+        self.http_status = http_status if type(http_status) is int and 100 <= http_status <= 599 else None
+        self.operation = operation if operation in self.OPERATIONS else 'storage'
+
+    @property
+    def diagnostics(self):
+        return {'diagnostic_code': self.diagnostic_code, 'http_status': self.http_status, 'operation': self.operation}
 
 
 def authorized_session(credentials_file):
     try:
         credentials = Credentials.from_authorized_user_file(credentials_file)
     except Exception:
-        raise DriveStorageError('Storage credentials are unavailable; contact an administrator.') from None
+        raise DriveStorageError('Storage credentials are unavailable; contact an administrator.', diagnostic_code='credentials_unavailable') from None
     if credentials.token_uri != 'https://oauth2.googleapis.com/token':
         raise DriveStorageError('Unexpected OAuth token endpoint.')
     session = AuthorizedSession(credentials)
@@ -48,17 +64,36 @@ class PrivateDriveStorage(Storage):
         return value
 
     def _request(self, session, method, url, **kwargs):
+        operation = ('photo_upload' if url == 'https://www.googleapis.com/upload/drive/v3/files' else
+            'id_allocation' if url == API + '/generateIds' else
+            'folder_lookup' if url == API and method == 'GET' else
+            'folder_create' if url == API and method == 'POST' else
+            'cleanup' if method == 'DELETE' else
+            'download' if kwargs.get('params', {}).get('alt') == 'media' else 'metadata')
         try:
             response = session.request(method, url, timeout=(10, 60), **kwargs)
             if not response.ok:
+                code = 'http_error'
+                try:
+                    reason = response.json().get('error', {}).get('errors', [{}])[0].get('reason')
+                    if reason in DriveStorageError.CODES:
+                        code = reason
+                except (ValueError, TypeError, IndexError, AttributeError):
+                    pass
+                status = response.status_code
                 response.close()
-                raise DriveStorageError('Private photo storage request failed; contact an administrator.')
+                raise DriveStorageError('Private photo storage request failed; contact an administrator.',
+                    diagnostic_code=code, http_status=status, operation=operation)
             return response
         except DriveStorageError:
             raise
-        except Exception:
-            # Google responses and URLs can contain credential or record data.
-            raise DriveStorageError('Private photo storage is unavailable; retry later.') from None
+        except Exception as error:
+            # Keep only fixed categories; never log Google bodies, URLs or exception messages.
+            code = ('auth_refresh_failed' if isinstance(error, RefreshError) else
+                'request_timeout' if isinstance(error, Timeout) else
+                'connection_failed' if isinstance(error, ConnectionError) else 'request_failed')
+            raise DriveStorageError('Private photo storage is unavailable; retry later.',
+                diagnostic_code=code, operation=operation) from None
 
     def _create(self, session, metadata, data=None):
         with self._request(session, 'GET', API + '/generateIds', params={'count': 1, 'space': 'drive'}) as response:
@@ -79,15 +114,17 @@ class PrivateDriveStorage(Storage):
                 if response.json().get('id') != file_id:
                     raise DriveStorageError('Unexpected storage response.')
             return file_id
-        except Exception:
+        except Exception as error:
+            diagnostics = error.diagnostics if isinstance(error, DriveStorageError) else {
+                "diagnostic_code": "write_failed", "operation": "folder_create" if data is None else "photo_upload"}
             # A timed-out create may already have succeeded remotely.
             try:
                 with session.delete(API + '/' + file_id, timeout=(10, 30)) as cleanup:
                     if cleanup.status_code not in (204, 404):
                         raise DriveStorageError('Storage cleanup requires administrator review.')
             except Exception:
-                raise DriveStorageError('Storage write failed; reconciliation may be required.') from None
-            raise DriveStorageError('Storage write failed; please retry.') from None
+                raise DriveStorageError('Storage write failed; reconciliation may be required.', diagnostic_code='cleanup_failed', operation='cleanup') from None
+            raise DriveStorageError('Storage write failed; please retry.', **diagnostics) from None
 
     def _folder(self, session, parent, name):
         if len(name) > 500 or not re.fullmatch(r'[\w-]+', name, flags=re.UNICODE):
@@ -96,7 +133,7 @@ class PrivateDriveStorage(Storage):
         with self._request(session, 'GET', API, params={'q': query, 'fields': 'files(id)', 'pageSize': 2}) as response:
             matches = response.json()['files']
         if len(matches) > 1:
-            raise DriveStorageError('Duplicate storage folders require administrator review.')
+            raise DriveStorageError('Duplicate storage folders require administrator review.', diagnostic_code='duplicate_folders', operation='folder_lookup')
         return self._id(matches[0]['id']) if matches else self._create(session,
             {'name': name, 'parents': [parent], 'mimeType': 'application/vnd.google-apps.folder'})
 

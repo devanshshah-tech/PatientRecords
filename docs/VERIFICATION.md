@@ -1,5 +1,11 @@
 # Verification record
 
+## Save-failure investigation and private diagnostics - 18 October 2026
+
+Investigated an operator-reported generic save failure. Verified the live database connection, matching deployed/local Drive authorization, both untrashed writable location folders and private root, and absence of duplicate patient/visit folder groups. No partial clinical rows remained. Existing logs had no retained failure category because handled errors were swallowed. A real synthetic 10-image intern save and one-image doctor save passed, including confirmations, retry/idempotency, invalid-image no-visit behavior and access checks; all synthetic files/records were cleaned up. The original failure was not reproduced and its cause is unconfirmed.
+
+Added allowlisted Drive operation/error categories and HTTP status plus database/filesystem categories to warning logs, without exception text, stack traces, provider bodies, patient inputs, URLs or credentials. Wrapped write errors preserve their diagnostic category after cleanup. Public error wording is unchanged. Local verification: 70 Django tests completed (68 passed, two PostgreSQL-only skips), build/system and migration consistency checks passed. Regressions verify provider-body/patient-name exclusion, unknown-reason rejection and preservation of the original upload diagnostic. No schema changes.
+
 ## Intern batches and audited deletion controls - 18 October 2026
 
 Added a batch label, batch search/filter, 100-row pages, select/clear controls and an explicit delete-selected button using Django's native CSRF-protected confirmation. Single and bulk deletion require delete_internaccess permission. Deletion audits each prior grant and removes the selected snapshot in one transaction; accounts and clinical records remain. New roster invitations require a consecutive-year batch, while repeated invitations preserve existing batch, dates, revoked state and reason. The migration backfills existing labels with fixed 2026-2027 before enabling the current-academic-year default; it does not update any date columns.

@@ -369,6 +369,53 @@ class ClinicalWorkflowTests(TestCase):
             self.assertNotContains(response, 'technical')
             self.assertFalse(Visit.objects.exists())
 
+
+    def test_save_failure_diagnostics_exclude_clinical_data_and_raw_exception(self):
+        from .drive_storage import DriveStorageError
+        error = DriveStorageError('PRIVATE provider body with patient name and credential',
+            diagnostic_code='rateLimitExceeded', http_status=403, operation='photo_upload')
+        data = submission(name_of_patient='PRIVATE Patient Canary')
+        data['patient_images'] = synthetic_photo()
+        with patch('users.views.save_submission', side_effect=error), self.assertLogs('users.views', level='WARNING') as captured:
+            response = self.client.post(reverse('submit_patient_details'), data, HTTP_ACCEPT='application/json')
+        self.assertEqual(response.status_code, 200)
+        output = ' '.join(captured.output)
+        self.assertIn('code=rateLimitExceeded', output)
+        self.assertIn('operation=photo_upload', output)
+        self.assertIn('http_status=403', output)
+        self.assertNotIn('PRIVATE', output)
+        self.assertNotIn('credential', output)
+        self.assertFalse(Visit.objects.exists())
+
+    def test_drive_http_diagnostics_are_allowlisted_and_survive_write_cleanup(self):
+        from unittest.mock import Mock, MagicMock
+        from .drive_storage import PrivateDriveStorage, DriveStorageError, API
+        storage = PrivateDriveStorage('synthetic.json', 'synthetic_root')
+        session = Mock()
+        response = Mock(ok=False, status_code=403)
+        response.json.return_value = {'error': {'message': 'PRIVATE provider message',
+            'errors': [{'reason': 'storageQuotaExceeded'}]}}
+        session.request.return_value = response
+        with self.assertRaises(DriveStorageError) as captured:
+            storage._request(session, 'POST', 'https://www.googleapis.com/upload/drive/v3/files')
+        self.assertEqual(captured.exception.diagnostic_code, 'storageQuotaExceeded')
+        self.assertEqual(captured.exception.http_status, 403)
+        self.assertEqual(captured.exception.operation, 'photo_upload')
+        response.json.return_value = {'error': {'errors': [{'reason': 'PRIVATE Patient Canary'}]}}
+        with self.assertRaises(DriveStorageError) as captured:
+            storage._request(session, 'GET', API)
+        self.assertEqual(captured.exception.diagnostic_code, 'http_error')
+        generated = MagicMock()
+        generated.__enter__.return_value.json.return_value = {'ids': ['synthetic_file']}
+        upstream = DriveStorageError('PRIVATE upload body', diagnostic_code='backendError', http_status=503, operation='photo_upload')
+        cleanup = MagicMock()
+        cleanup.__enter__.return_value.status_code = 204
+        session.delete.return_value = cleanup
+        with patch.object(storage, '_request', side_effect=[generated, upstream]):
+            with self.assertRaises(DriveStorageError) as captured:
+                storage._create(session, {'name': 'synthetic.jpg'}, b'synthetic')
+        self.assertEqual(captured.exception.diagnostics, upstream.diagnostics)
+
     def test_google_invitation_requires_verified_email(self):
         login = SocialLogin(user=get_user_model()(username='new'),
             account=SocialAccount(provider='google', uid='synthetic'),
