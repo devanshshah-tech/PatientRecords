@@ -45,6 +45,8 @@ def compress_photos(files):
 def save_submission(user, details, photos):
     if not settings.CLINICAL_UPLOADS_ENABLED:
         raise ValidationError('Saving visits is disabled while private storage is being prepared.')
+    if not photos or any(not photo for photo in photos):
+        raise ValidationError('At least one photograph is required to save a visit.')
     details = dict(details)
     details['patient_id'] = normalize_case_number(details['patient_id'], strict=True)
     if details.get('previous_opd_number'):

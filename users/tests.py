@@ -172,6 +172,14 @@ class ClinicalWorkflowTests(TestCase):
             self.assertFalse(Patient.objects.filter(patient_id='000003').exists())
 
 
+    def test_save_service_refuses_an_empty_photo_queue(self):
+        for photos in ([], [b'']):
+            with self.assertRaises(ValidationError):
+                save_submission(self.intern, submission(), photos)
+        self.assertFalse(Patient.objects.exists())
+        self.assertFalse(Visit.objects.exists())
+        self.assertFalse(Photo.objects.exists())
+
     @override_settings(PHOTO_STORAGE='drive')
     def test_second_photo_upload_failure_rolls_back_entire_visit_and_quota(self):
         from .drive_storage import DriveStorageError
