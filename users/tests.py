@@ -547,7 +547,7 @@ class ClinicalWorkflowTests(TestCase):
         self.intern.user_permissions.add(Permission.objects.get(codename='add_internaccess'))
         original_expiry = self.grant.expires_at
         response = self.client.post(url, {'emails': 'INTERN@example.test\nnew@example.test\nNEW@example.test',
-            'reason': 'Synthetic semester roster'})
+            'reason': 'Synthetic semester roster', 'batch': '2026-2027'})
         self.assertEqual(response.status_code, 302)
         self.assertEqual(InternAccess.objects.count(), 2)
         self.grant.refresh_from_db()
@@ -562,7 +562,7 @@ class ClinicalWorkflowTests(TestCase):
         for text in ('FIRST@example.test\r\nSECOND@example.test',
                      'FIRST@example.test\tSECOND@example.test',
                      'FIRST@example.test; SECOND@example.test, first@example.test'):
-            form = SemesterInviteForm({'emails': text, 'reason': 'Synthetic roster'})
+            form = SemesterInviteForm({'emails': text, 'reason': 'Synthetic roster', 'batch': '2026-2027'})
             self.assertTrue(form.is_valid(), form.errors)
             self.assertEqual(form.cleaned_data['emails'], ['first@example.test', 'second@example.test'])
         self.intern.is_staff = True
@@ -573,6 +573,102 @@ class ClinicalWorkflowTests(TestCase):
         self.assertContains(response, 'Check line(s) 1, 3:')
         self.assertContains(response, 'No invitations have been added.')
         self.assertFalse(InternAccess.objects.filter(email='valid@example.test').exists())
+
+
+    def access_admin_client(self, delete=True):
+        from django.test import Client
+        self.doctor.is_staff = True
+        self.doctor.save()
+        codes = ['view_internaccess', 'change_internaccess', 'add_internaccess']
+        if delete:
+            codes.append('delete_internaccess')
+        self.doctor.user_permissions.add(*Permission.objects.filter(codename__in=codes))
+        client = Client()
+        client.force_login(self.doctor)
+        return client
+
+    def test_batch_invitation_preserves_existing_batch_and_all_access_settings(self):
+        from .admin import SemesterInviteForm
+        self.grant.batch = '2025-2026'
+        self.grant.revoked = True
+        self.grant.save()
+        before = (self.grant.starts_at, self.grant.expires_at, self.grant.reason)
+        admin = self.access_admin_client()
+        response = admin.post(reverse('admin:users_internaccess_invite'), {
+            'batch': '2027-2028', 'emails': self.grant.email + '\nnewbatch@example.test', 'reason': 'Synthetic new cohort'})
+        self.assertEqual(response.status_code, 302)
+        self.grant.refresh_from_db()
+        self.assertEqual((self.grant.starts_at, self.grant.expires_at, self.grant.reason), before)
+        self.assertTrue(self.grant.revoked)
+        self.assertEqual(self.grant.batch, '2025-2026')
+        self.assertEqual(InternAccess.objects.get(email='newbatch@example.test').batch, '2027-2028')
+        for invalid in ['2026-2028', '2026/2027', 'bad', '']:
+            form = SemesterInviteForm({'batch': invalid, 'emails': 'valid@example.test', 'reason': 'Synthetic'})
+            self.assertFalse(form.is_valid())
+            self.assertIn('batch', form.errors)
+
+    def test_bulk_deletion_requires_confirmation_and_revokes_existing_session(self):
+        visit = self.create_visit()
+        other = InternAccess.objects.create(email='selected@example.test', reason='Synthetic selected', batch='2026-2027')
+        retained = InternAccess.objects.create(email='retained@example.test', reason='Synthetic retained', batch='2027-2028')
+        self.grant.batch = '2026-2027'; self.grant.save()
+        admin = self.access_admin_client()
+        url = reverse('admin:users_internaccess_changelist')
+        page = admin.get(url)
+        self.assertContains(page, 'Select all on this page')
+        self.assertContains(page, 'Delete selected access')
+        self.assertContains(page, 'intern_access_admin.js')
+        data = {'action': 'delete_selected', '_selected_action': [self.grant.pk, other.pk], 'index': '0'}
+        preview = admin.post(url, data)
+        self.assertEqual(preview.status_code, 200)
+        self.assertContains(preview, 'Yes, I')
+        self.assertEqual(InternAccess.objects.count(), 3)
+        self.assertEqual(AuditEvent.objects.filter(action='access_delete').count(), 0)
+        confirmed = admin.post(url, {**data, 'post': 'yes'})
+        self.assertEqual(confirmed.status_code, 302)
+        self.assertEqual(list(InternAccess.objects.values_list('pk', flat=True)), [retained.pk])
+        self.assertEqual(AuditEvent.objects.filter(action='access_delete').count(), 2)
+        self.assertEqual(self.client.get(reverse('submit_patient_details')).status_code, 403)
+        self.assertTrue(get_user_model().objects.filter(pk=self.intern.pk).exists())
+        self.assertTrue(Visit.objects.filter(pk=visit.pk).exists())
+        self.assertEqual(Photo.objects.count(), 1)
+        self.assertEqual(admin.get(reverse('visit_detail', args=[visit.pk])).status_code, 200)
+
+    def test_select_all_filtered_batch_keeps_other_batches(self):
+        self.grant.batch='2026-2027'; self.grant.save()
+        InternAccess.objects.create(email='samebatch@example.test', reason='Synthetic', batch='2026-2027')
+        retained = InternAccess.objects.create(email='differentbatch@example.test', reason='Synthetic', batch='2027-2028')
+        admin = self.access_admin_client()
+        url = reverse('admin:users_internaccess_changelist') + '?batch__exact=2026-2027'
+        response = admin.post(url, {'action': 'delete_selected', '_selected_action': [self.grant.pk],
+            'select_across': '1', 'post': 'yes', 'index': '0'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(list(InternAccess.objects.values_list('pk', flat=True)), [retained.pk])
+        self.assertEqual(AuditEvent.objects.filter(action='access_delete').count(), 2)
+
+    def test_single_delete_and_staff_without_delete_permission(self):
+        admin = self.access_admin_client(delete=False)
+        url = reverse('admin:users_internaccess_delete', args=[self.grant.pk])
+        self.assertEqual(admin.post(url, {'post': 'yes'}).status_code, 403)
+        self.assertTrue(InternAccess.objects.filter(pk=self.grant.pk).exists())
+        self.assertNotContains(admin.get(reverse('admin:users_internaccess_changelist')), 'access-delete-selected')
+        self.doctor.user_permissions.add(Permission.objects.get(codename='delete_internaccess'))
+        self.assertEqual(admin.get(url).status_code, 200)
+        self.assertTrue(InternAccess.objects.filter(pk=self.grant.pk).exists())
+        self.assertEqual(admin.post(url, {'post': 'yes'}).status_code, 302)
+        self.assertFalse(InternAccess.objects.filter(pk=self.grant.pk).exists())
+        self.assertEqual(self.client.get(reverse('submit_patient_details')).status_code, 403)
+        self.assertEqual(AuditEvent.objects.filter(action='access_delete').count(), 1)
+
+    def test_grant_deletion_rolls_back_if_audit_fails(self):
+        from django.contrib import admin
+        from django.test import RequestFactory
+        request = RequestFactory().post('/')
+        request.user = self.doctor
+        with patch('users.admin.AuditEvent.objects.create', side_effect=RuntimeError('Synthetic audit failure')):
+            with self.assertRaises(RuntimeError):
+                admin.site._registry[InternAccess].delete_queryset(request, InternAccess.objects.all())
+        self.assertTrue(InternAccess.objects.filter(pk=self.grant.pk).exists())
 
     def test_six_digit_case_numbers_optional_shift_and_previous_case(self):
         from .forms import PatientDetailsForm, DoctorSearchForm

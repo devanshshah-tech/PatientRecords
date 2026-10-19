@@ -1,4 +1,6 @@
 import uuid
+import re
+from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.db import models
 from django.db.models.functions import Lower
@@ -14,8 +16,20 @@ def one_year_from_now():
         return now.replace(year=now.year + 1, day=28)
 
 
+def current_intern_batch():
+    today = timezone.localdate()
+    start = today.year if today.month >= 4 else today.year - 1
+    return f'{start}-{start + 1}'
+
+
+def validate_intern_batch(value):
+    if not re.fullmatch(r'[0-9]{4}-[0-9]{4}', value or '') or int(value[5:]) != int(value[:4]) + 1:
+        raise ValidationError('Enter consecutive batch years, for example 2026-2027.')
+
+
 class InternAccess(models.Model):
     email = models.EmailField(unique=True)
+    batch = models.CharField(max_length=9, default=current_intern_batch, validators=[validate_intern_batch], db_index=True)
     starts_at = models.DateTimeField(default=timezone.now)
     expires_at = models.DateTimeField(default=one_year_from_now)
     revoked = models.BooleanField(default=False)

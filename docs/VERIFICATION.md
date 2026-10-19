@@ -1,5 +1,11 @@
 # Verification record
 
+## Intern batches and audited deletion controls - 18 October 2026
+
+Added a batch label, batch search/filter, 100-row pages, select/clear controls and an explicit delete-selected button using Django's native CSRF-protected confirmation. Single and bulk deletion require delete_internaccess permission. Deletion audits each prior grant and removes the selected snapshot in one transaction; accounts and clinical records remain. New roster invitations require a consecutive-year batch, while repeated invitations preserve existing batch, dates, revoked state and reason. The migration backfills existing labels with fixed 2026-2027 before enabling the current-academic-year default; it does not update any date columns.
+
+Local verification: 68 Django tests completed (66 passed, two PostgreSQL-only skips). Tests cover confirmation-before-delete, active-session denial after deletion, preserved accounts/clinical history, filtered select-across isolation, permission denial, audit rollback and batch validation/preservation. Build/system and migration consistency checks passed. An in-memory admin-control check verified select/clear and submission through the native confirmation action. Verified the live target contains 95 grants and saved only a hash/count baseline of all existing non-batch access fields in ignored operator tooling. Deployment must compare that baseline afterward; live smoke deletion uses synthetic grants only.
+
 ## Photo-limit message visibility - 18 October 2026
 
 Attempting an eleventh capture now smoothly scrolls and focuses the message immediately above the captured image queue: remove a photo below before taking another. Existing ten captures are retained. The camera status is programmatically focusable. All eleven existing camera tests and the build passed; an in-memory browser-harness check additionally verified the ten-photo boundary, scroll/focus, preserved queue and successful replacement after removal. No database/model changes or clinical data were involved.

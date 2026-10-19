@@ -6,7 +6,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.shortcuts import render, redirect
 from django.urls import path, reverse
-from .models import InternAccess, AuditEvent
+from .models import InternAccess, AuditEvent, current_intern_batch, validate_intern_batch
 
 
 class AccessForm(forms.ModelForm):
@@ -22,6 +22,8 @@ class AccessForm(forms.ModelForm):
 
 
 class SemesterInviteForm(forms.Form):
+    batch = forms.CharField(max_length=9, initial=current_intern_batch, validators=[validate_intern_batch],
+        help_text="Consecutive batch years, for example 2026-2027. This label does not change grant dates.")
     emails = forms.CharField(widget=forms.Textarea, help_text='Paste an Excel email column. Line breaks, tabs, spaces, commas and semicolons are accepted; up to 500 unique addresses.')
     reason = forms.CharField(widget=forms.Textarea, max_length=2000)
 
@@ -53,10 +55,26 @@ class SemesterInviteForm(forms.Form):
 @admin.register(InternAccess)
 class InternAccessAdmin(admin.ModelAdmin):
     form = AccessForm
-    list_display = ('email', 'starts_at', 'expires_at', 'revoked')
-    search_fields = ('email',)
-    list_filter = ('revoked',)
+    list_display = ('email', 'batch', 'starts_at', 'expires_at', 'revoked')
+    search_fields = ('email', 'batch')
+    list_filter = ('batch', 'revoked')
+    ordering = ('batch', 'email')
+    list_per_page = 100
     change_list_template = 'admin/users/internaccess/change_list.html'
+
+    class Media:
+        js = ('users/intern_access_admin.js',)
+
+    def changelist_view(self, request, extra_context=None):
+        return super().changelist_view(request, extra_context={
+            **(extra_context or {}), 'can_delete_access': self.has_delete_permission(request)})
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if 'delete_selected' in actions:
+            action, name, _ = actions['delete_selected']
+            actions['delete_selected'] = (action, name, 'Delete selected access (revoke immediately)')
+        return actions
 
     def get_urls(self):
         return [path('invite/', self.admin_site.admin_view(self.invite_semester),
@@ -71,11 +89,11 @@ class InternAccessAdmin(admin.ModelAdmin):
             with transaction.atomic():
                 for email in form.cleaned_data['emails']:
                     grant, created = InternAccess.objects.get_or_create(email=email,
-                        defaults={'reason': form.cleaned_data['reason']})
+                        defaults={'reason': form.cleaned_data['reason'], 'batch': form.cleaned_data['batch']})
                     if created:
                         created_count += 1
                         AuditEvent.objects.create(actor=request.user, action='access_change', object_id=str(grant.pk),
-                            details={'after': {'email': grant.email, 'expires_at': str(grant.expires_at), 'reason': grant.reason}})
+                            details={'after': {'email': grant.email, 'batch': grant.batch, 'expires_at': str(grant.expires_at), 'reason': grant.reason}})
             existing_count = len(form.cleaned_data['emails']) - created_count
             messages.success(request, f'Processed {len(form.cleaned_data["emails"])} unique addresses: granted one-year access to {created_count} new interns; {existing_count} already had grants. Existing grants were kept; edit them individually to extend or revoke.')
             return redirect(reverse('admin:users_internaccess_changelist'))
@@ -83,14 +101,25 @@ class InternAccessAdmin(admin.ModelAdmin):
         return render(request, 'admin/users/internaccess/invite.html', context)
 
     def save_model(self, request, obj, form, change):
-        previous = InternAccess.objects.filter(pk=obj.pk).values('starts_at', 'expires_at', 'revoked', 'email', 'reason').first()
+        previous = InternAccess.objects.filter(pk=obj.pk).values('starts_at', 'expires_at', 'revoked', 'email', 'reason', 'batch').first()
         super().save_model(request, obj, form, change)
-        after = {key: str(getattr(obj, key)) for key in ('email', 'starts_at', 'expires_at', 'revoked', 'reason')}
+        after = {key: str(getattr(obj, key)) for key in ('email', 'starts_at', 'expires_at', 'revoked', 'reason', 'batch')}
         AuditEvent.objects.create(actor=request.user, action='access_change', object_id=str(obj.pk),
             details={'before': {k: str(v) for k, v in (previous or {}).items()}, 'after': after})
 
-    def has_delete_permission(self, request, obj=None):
-        return False
+    def delete_queryset(self, request, queryset):
+        with transaction.atomic():
+            grants = list(queryset.select_for_update())
+            for grant in grants:
+                AuditEvent.objects.create(actor=request.user, action='access_delete', object_id=str(grant.pk),
+                    details={'before': {'email': grant.email, 'batch': grant.batch,
+                        'starts_at': grant.starts_at.isoformat(), 'expires_at': grant.expires_at.isoformat(),
+                        'revoked': grant.revoked, 'reason': grant.reason},
+                        'reason': 'Administrator confirmed deletion of intern access.'})
+            self.model.objects.filter(pk__in=[grant.pk for grant in grants]).delete()
+
+    def delete_model(self, request, obj):
+        self.delete_queryset(request, self.model.objects.filter(pk=obj.pk))
 
 
 @admin.register(AuditEvent)

@@ -44,7 +44,7 @@ class Command(BaseCommand):
         doctor.save(update_fields=['is_staff'])
         permissions = Permission.objects.filter(content_type__app_label='users',
             codename__in=['compare_patients', 'add_internaccess', 'change_internaccess',
-                'view_internaccess', 'view_auditevent'])
+                'view_internaccess', 'delete_internaccess', 'view_auditevent'])
         doctor.user_permissions.add(*permissions)
         grant, created = InternAccess.objects.get_or_create(email=intern_email,
             defaults={'reason': 'Operator-authorized local sign-in setup'})

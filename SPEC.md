@@ -88,3 +88,11 @@ The form shows a visible saving state and scrolls/focuses errors into view. Unco
 The save service itself rejects empty photo queues/empty photo payloads before creating records, in addition to HTTP upload validation. A partial upload failure rolls back the entire visit and removes files uploaded earlier in that attempt.
 
 When an eleventh photo is attempted, keep the ten existing captures and bring the limit message above the image queue into view with smooth scrolling and keyboard focus. Removing a capture restores the live count and permits another capture.
+
+## Intern batches and deletion UX
+
+Classify all existing intern access grants as batch 2026-2027, preserving every start/expiry timestamp, revoked flag, email and administrative reason. This is a label-only migration; batch labels never change access dates. New invitations require a calendar-year-pair batch label (YYYY-YYYY with consecutive years); existing invitations keep their batch and access settings when pasted again. New manual grants default to the current academic-year label.
+
+Django intern-access administration lists/searches/filters by batch, shows 100 entries per page, and provides select-all-visible, clear-selection and delete-selected controls alongside native filtered-result selection. Both individual and bulk deletion require explicit delete_internaccess permission and a CSRF-protected confirmation. Existing authorized access managers receive that permission without granting clinical privileges to ordinary staff. Deletion removes the access grant only; accounts, clinical authorship and historical records remain. Every deleted entry is audited with actor and previous access metadata in the same transaction. Without an active grant, existing intern sessions immediately lose submission/confirmation access. Revocation and extension remain available for temporary changes.
+
+The operator requested classification and deletion controls, not deletion of the current roster. Production verification must prove the existing roster count and all date fingerprints are unchanged after migration. Bulk-delete tests and live smoke checks use synthetic grants only.
