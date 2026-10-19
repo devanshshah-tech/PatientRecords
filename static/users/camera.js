@@ -59,7 +59,12 @@
     if (!document.getElementById('id_consent_confirmed').checked) {
       closeCamera(); status.textContent = 'Patient consent is required.'; return;
     }
-    if (photos.length >= 10) { status.textContent = 'Limit reached: remove a photo before taking another.'; return; }
+    if (photos.length >= 10) {
+      status.textContent = 'You have 10 photos ready. Remove a photo below before taking another.';
+      status.scrollIntoView?.({behavior:'smooth', block:'center'});
+      status.focus?.({preventScroll:true});
+      return;
+    }
     busy = true; capture.disabled = true; submit.disabled = true;
     try {
       const canvas = document.createElement('canvas');

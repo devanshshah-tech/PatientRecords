@@ -86,3 +86,5 @@ Successful submissions navigate to a dedicated private confirmation page showing
 The form shows a visible saving state and scrolls/focuses errors into view. Unconfirmed network/server responses show plain-language retry instructions, retain the photo queue and submission UUID, and never expose exception details. Validation errors remain actionable. Failed saves do not navigate or show success; malformed JSON or unexpected redirects cannot produce false confirmation.
 
 The save service itself rejects empty photo queues/empty photo payloads before creating records, in addition to HTTP upload validation. A partial upload failure rolls back the entire visit and removes files uploaded earlier in that attempt.
+
+When an eleventh photo is attempted, keep the ten existing captures and bring the limit message above the image queue into view with smooth scrolling and keyboard focus. Removing a capture restores the live count and permits another capture.

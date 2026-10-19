@@ -1,5 +1,9 @@
 # Verification record
 
+## Photo-limit message visibility - 18 October 2026
+
+Attempting an eleventh capture now smoothly scrolls and focuses the message immediately above the captured image queue: remove a photo below before taking another. Existing ten captures are retained. The camera status is programmatically focusable. All eleven existing camera tests and the build passed; an in-memory browser-harness check additionally verified the ten-photo boundary, scroll/focus, preserved queue and successful replacement after removal. No database/model changes or clinical data were involved.
+
 ## Persistent save confirmation and plain retry feedback - 18 October 2026
 
 Replaced the short-lived homepage flash message with a private confirmation page showing the saved patient name and actual persisted image count. JSON and ordinary POSTs go to the same opaque submission-UUID destination. Only the uploader with currently active access can view it; names are escaped, no clinical details go into flash cookies or URL parameters, and reloads/idempotent retries retain the correct original count. The form shows saving progress, brings failures into view and focuses them, retains captures on failure, and hides technical network/JSON/server details behind plain retry instructions. Known storage/database failures return the form with a helpful message; validation guidance remains available.
