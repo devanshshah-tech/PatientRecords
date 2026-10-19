@@ -28,7 +28,7 @@ Server validates image format, decoded dimensions, request size, image count, an
 
 ## Delivery plan and gates
 
-The public database's temporary 14-day branch expiry is removed at the operator's request. Retain Neon Free within its current quotas; no application record-expiry policy is inferred from hosting. SeaweedFS remains an optional self-hosted photo store requiring managed disk/compute, not a replacement for PostgreSQL. Upload success must survive the browser's navigation; fetch submissions return a JSON destination without consuming the success notification. Doctor search distinguishes one visit's details/photos from patient-wide comparison, with explicit navigation back to records and home. Historical age is displayed per visit.
+The public database's temporary 14-day branch expiry is removed at the operator's request. Retain Neon Free within its current quotas; no application record-expiry policy is inferred from hosting. SeaweedFS remains an optional self-hosted photo store requiring managed disk/compute, not a replacement for PostgreSQL. Upload success must survive the browser's navigation; fetch submissions return the private confirmation-page destination. Doctor search distinguishes one visit's details/photos from patient-wide comparison, with explicit navigation back to records and home. Historical age is displayed per visit.
 
 After live Drive checks pass, the public preview may enable synthetic visit saving through the private Drive backend. At the operator's request, omit the global preview banner from the interface. Deployment stage and remaining clinical launch gates are documented operationally. Capture counts must update immediately on both add and remove, including zero and singular states.
 
