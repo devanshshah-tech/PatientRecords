@@ -3,6 +3,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models.functions import Lower
 from django.utils import timezone
+from .case_numbers import ANAND, LOCATION_CHOICES, folder_words
 
 
 def one_year_from_now():
@@ -33,10 +34,12 @@ class InternAccess(models.Model):
 
 
 class Patient(models.Model):
-    patient_id = models.CharField(max_length=100, unique=True)
+    patient_id = models.CharField(max_length=100)
+    location = models.CharField(max_length=32, choices=LOCATION_CHOICES, default=ANAND)
     photo_bytes = models.PositiveBigIntegerField(default=0)
 
     class Meta:
+        constraints = [models.UniqueConstraint(fields=['location', 'patient_id'], name='unique_case_per_location')]
         permissions = [('compare_patients', 'Can review patient photographs and compare visits')]
 
     def __str__(self):
@@ -49,19 +52,22 @@ class Visit(models.Model):
     case_year = models.CharField(max_length=100, db_index=True)
     patient = models.ForeignKey(Patient, on_delete=models.PROTECT, related_name='visits')
     submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    visit_number = models.PositiveIntegerField(null=True, blank=True)
+    patient_folder_name = models.CharField(max_length=410, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     consent_confirmed = models.BooleanField()
     details = models.JSONField()
 
     class Meta:
         ordering = ['-created_at', '-pk']
+        constraints = [models.UniqueConstraint(fields=['patient', 'visit_number'], name='unique_patient_visit_number')]
 
 
 def photo_path(instance, filename):
     if getattr(settings, 'PHOTO_STORAGE', 'filesystem') == 'drive':
-        patient = uuid.uuid5(uuid.NAMESPACE_OID, f'clinical-patient:{instance.visit.patient_id}').hex
-        visit = uuid.UUID(str(instance.visit.submission_id)).hex
-        return f'patient_{patient}/visit_{visit}/{uuid.uuid4().hex}.jpg'
+        visit = instance.visit
+        folder = f'{visit.visit_number}_{folder_words(visit.details.get("diagnosis", ""))}_{folder_words(visit.details.get("name_of_intern", ""))}'
+        return f'{visit.patient.location}/{visit.patient_folder_name}/{folder}/{uuid.uuid4().hex}.jpg'
     return f'photos/{uuid.uuid4().hex}.jpg'
 
 

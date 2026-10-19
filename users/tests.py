@@ -35,7 +35,7 @@ def synthetic_photo(size=(64, 64), exif=None):
 
 
 def submission(**kwargs):
-    return {'submission_id': str(uuid.uuid4()), 'patient_id': 'TEST-001', 'consent_confirmed': True,
+    return {'submission_id': str(uuid.uuid4()), 'patient_id': '000001', 'consent_confirmed': True,
         'opd_number': 'OPD-1', 'case_year': '2026', 'name_of_patient': 'Synthetic patient',
         'age': 25, 'gender': 'O', 'diagnosis': 'Synthetic injury', 'name_of_intern': 'Synthetic intern',
         'roll_number': '1', **kwargs}
@@ -168,8 +168,8 @@ class ClinicalWorkflowTests(TestCase):
                 patch('users.drive_storage.PrivateDriveStorage._folder', return_value='synthetic_folder'), \
                 patch('users.drive_storage.PrivateDriveStorage._create', side_effect=DriveStorageError('synthetic')):
             with self.assertRaises(DriveStorageError):
-                self.create_visit(patient_id='SYNTHETIC-FAILED-DRIVE')
-            self.assertFalse(Patient.objects.filter(patient_id='SYNTHETIC-FAILED-DRIVE').exists())
+                self.create_visit(patient_id='000003')
+            self.assertFalse(Patient.objects.filter(patient_id='000003').exists())
 
     def test_retry_does_not_duplicate_visit_or_quota(self):
         data = submission()
@@ -237,7 +237,7 @@ class ClinicalWorkflowTests(TestCase):
     def test_doctor_search_and_comparison(self):
         first = self.create_visit()
         second = self.create_visit()
-        other = self.create_visit(patient_id='OTHER')
+        other = self.create_visit(patient_id='000002')
         self.client.force_login(self.doctor)
         response = self.client.post(reverse('doctor_search'), {'opd_number': 'OPD-1', 'diagnosis': 'injury'})
         self.assertEqual(response.status_code, 200)
@@ -245,13 +245,13 @@ class ClinicalWorkflowTests(TestCase):
         self.assertEqual(len(response.context['patient_groups']), 2)
         self.assertContains(response, 'View this visit', count=3)
         self.assertContains(response, 'Compare across visits', count=2)
-        response = self.client.post(reverse('comparison'), {'patient_id': 'TEST-001',
+        response = self.client.post(reverse('comparison'), {'patient_id': '000001',
             'photos': [str(first.photos.get().pk), str(second.photos.get().pk)]})
         self.assertEqual(len(response.context['selected']), 2)
         self.assertEqual(response['Cache-Control'], 'no-store, private')
-        response = self.client.post(reverse('comparison'), {'patient_id': 'TEST-001', 'photos': [str(other.photos.get().pk)]})
+        response = self.client.post(reverse('comparison'), {'patient_id': '000001', 'photos': [str(other.photos.get().pk)]})
         self.assertEqual(response.context['selected'], [])
-        response = self.client.post(reverse('comparison'), {'patient_id': 'TEST-001', 'photos': ['x' * 36]})
+        response = self.client.post(reverse('comparison'), {'patient_id': '000001', 'photos': ['x' * 36]})
         self.assertEqual(response.status_code, 200)
 
     def test_single_visit_view_is_private_and_does_not_include_other_visit_photos(self):
@@ -487,6 +487,116 @@ class ClinicalWorkflowTests(TestCase):
         self.assertContains(response, 'No invitations have been added.')
         self.assertFalse(InternAccess.objects.filter(email='valid@example.test').exists())
 
+    def test_six_digit_case_numbers_optional_shift_and_previous_case(self):
+        from .forms import PatientDetailsForm, DoctorSearchForm
+        form = PatientDetailsForm(submission(patient_id='2413', previous_opd_number='99'))
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['patient_id'], '002413')
+        self.assertEqual(form.cleaned_data['previous_opd_number'], '000099')
+        self.assertFalse(form.cleaned_data['tf_shift'])
+        for value in ['1000000', '000000', '0', 'ABC', '24/13']:
+            form = PatientDetailsForm(submission(patient_id=value))
+            self.assertFalse(form.is_valid())
+            self.assertIn('patient_id', form.errors)
+        form = DoctorSearchForm({'patient_id': '2413'})
+        self.assertTrue(form.is_valid())
+        self.assertEqual(form.cleaned_data['patient_id'], '002413')
+        first = self.create_visit(patient_id='2413')
+        again = self.create_visit(patient_id='002413')
+        self.assertEqual(first.patient_id, again.patient_id)
+        self.assertEqual([first.visit_number, again.visit_number], [1, 2])
+
+    @override_settings(PHOTO_STORAGE='drive')
+    def test_location_folder_names_use_first_visit_and_retry_is_stable(self):
+        from .models import photo_path
+        from .case_numbers import ANAND, TF
+        # Path generation is exercised with private filesystem bytes; Drive calls are mocked elsewhere.
+        with override_settings(PHOTO_STORAGE='filesystem'):
+            first = self.create_visit(patient_id='2413', name_of_patient='Synthetic Patient Name',
+                diagnosis='First Visit Reason', name_of_intern='Synthetic Intern Name')
+            second = self.create_visit(patient_id='2413', name_of_patient='Changed Patient Name',
+                diagnosis='Follow Up Reason', name_of_intern='Another Intern Name')
+            other = self.create_visit(patient_id='2413', tf_shift=True)
+        self.assertEqual(first.patient_folder_name, '002413_Synthetic-Patient-Name_First-Visit-Reason')
+        self.assertEqual(second.patient_folder_name, first.patient_folder_name)
+        self.assertEqual(first.patient.location, ANAND)
+        self.assertEqual(other.patient.location, TF)
+        self.assertNotEqual(first.patient_id, other.patient_id)
+        self.assertEqual(other.visit_number, 1)
+        self.assertTrue(photo_path(second.photos.get(), 'ignored').startswith(
+            'AnandHospital/002413_Synthetic-Patient-Name_First-Visit-Reason/2_Follow-Up-Reason_Another-Intern-Name/'))
+        self.assertTrue(photo_path(other.photos.get(), 'ignored').startswith('TribhuvandasFoundation/002413_'))
+        self.client.force_login(self.doctor)
+        result = self.client.post(reverse('doctor_search'), {'patient_id': '2413'})
+        self.assertEqual(len(result.context['patient_groups']), 2)
+        self.assertContains(result, 'Tribhuvandas Foundation')
+        result = self.client.post(reverse('doctor_search'), {'patient_id': '2413', 'location': TF})
+        self.assertEqual(len(result.context['visits']), 1)
+        result = self.client.post(reverse('comparison'), {'patient_id': '2413', 'location': TF,
+            'photos': [str(first.photos.get().pk), str(second.photos.get().pk)]})
+        self.assertEqual(result.context['patient'].pk, other.patient_id)
+        self.assertEqual(result.context['selected'], [])
+        self.assertEqual(len(result.context['photos']), 1)
+
+    def test_retry_cannot_switch_location(self):
+        data = submission()
+        photos = compress_photos([synthetic_photo()])
+        first = save_submission(self.intern, data, photos)
+        with self.assertRaises(ValidationError):
+            save_submission(self.intern, {**data, 'tf_shift': True}, photos)
+        repeated = save_submission(self.intern, data, photos)
+        self.assertEqual(repeated.pk, first.pk)
+        self.assertEqual(repeated.visit_number, 1)
+        self.assertEqual(Visit.objects.count(), 1)
+
+    def test_folder_punctuation_is_not_a_path_or_query(self):
+        from .case_numbers import folder_words
+        self.assertEqual(folder_words('  Synthetic   Multi Word  '), 'Synthetic-Multi-Word')
+        self.assertEqual(folder_words("../Unsafe / Folder's name"), 'Unsafe-Folder-s-name')
+        self.assertEqual(folder_words('word ' * 30), '-'.join(['word'] * 30))
+        with self.assertRaises(ValidationError):
+            folder_words('a' * 1000)
+
+
+    def test_drive_storage_routes_only_to_selected_location_and_validates_paths(self):
+        from django.core.files.base import ContentFile
+        from .drive_storage import PrivateDriveStorage, DriveStorageError
+        from .case_numbers import TF
+        storage = PrivateDriveStorage('synthetic.json', 'root', {TF: 'tf_folder'})
+        path = TF + '/002413_Synthetic-Patient_First-Reason/1_First-Reason_Synthetic-Intern/' + 'a' * 32 + '.jpg'
+        with patch('users.drive_storage.authorized_session'), \
+                patch.object(storage, '_folder', return_value='nested_folder') as folder, \
+                patch.object(storage, '_create', return_value='synthetic_file'):
+            self.assertEqual(storage._save(path, ContentFile(b'synthetic')), 'drive/synthetic_file')
+            self.assertEqual(folder.call_args_list[0].args[1:], ('tf_folder', '002413_Synthetic-Patient_First-Reason'))
+            self.assertEqual(folder.call_args_list[1].args[1:], ('nested_folder', '1_First-Reason_Synthetic-Intern'))
+            self.assertEqual(folder.call_count, 2)
+        for unsafe in ('../' + path, path.replace('TribhuvandasFoundation', 'OtherLocation'),
+                       path.replace('1_First', '0_First'), path.replace('Synthetic-Patient', "Unsafe'Name")):
+            with patch('users.drive_storage.authorized_session') as session:
+                with self.assertRaises(DriveStorageError):
+                    storage._save(unsafe, ContentFile(b'synthetic'))
+                session.assert_not_called()
+
+    def test_legacy_case_normalization_migration_and_collision_guard(self):
+        import importlib
+        from django.apps import apps
+        from types import SimpleNamespace
+        migration = importlib.import_module('users.migrations.0003_patient_location_visit_patient_folder_name_and_more')
+        patient = Patient.objects.create(patient_id='45')
+        first = Visit.objects.create(patient=patient, submitted_by=self.intern, consent_confirmed=True,
+            opd_number='', case_year='2026', details={})
+        second = Visit.objects.create(patient=patient, submitted_by=self.intern, consent_confirmed=True,
+            opd_number='', case_year='2026', details={})
+        migration.normalize_existing_records(apps, SimpleNamespace(connection=connection))
+        patient.refresh_from_db(); first.refresh_from_db(); second.refresh_from_db()
+        self.assertEqual(patient.patient_id, '000045')
+        self.assertEqual([first.visit_number, second.visit_number], [1, 2])
+        Patient.objects.create(patient_id='45')
+        with self.assertRaisesRegex(RuntimeError, 'normalization conflict'):
+            migration.normalize_existing_records(apps, SimpleNamespace(connection=connection))
+        self.assertTrue(Patient.objects.filter(patient_id='45').exists())
+
 
 @skipUnless(connection.vendor == 'postgresql', 'Concurrent quota verification requires PostgreSQL; covered in CI.')
 class ConcurrentQuotaTests(TransactionTestCase):
@@ -494,7 +604,7 @@ class ConcurrentQuotaTests(TransactionTestCase):
         user = get_user_model().objects.create_user('concurrent', email='concurrent@example.test')
         EmailAddress.objects.create(user=user, email=user.email, verified=True)
         InternAccess.objects.create(email=user.email, reason='Synthetic concurrency test')
-        Patient.objects.create(patient_id='TEST-001')
+        Patient.objects.create(patient_id='000001')
         blob = compress_photos([synthetic_photo()])[0]
         barrier = Barrier(2)
         def upload():
@@ -514,3 +624,25 @@ class ConcurrentQuotaTests(TransactionTestCase):
         self.assertEqual(sorted(results), [False, True])
         self.assertEqual(Patient.objects.get().photo_bytes, len(blob))
         self.assertEqual(Visit.objects.count(), 1)
+
+
+    def test_concurrent_followups_get_distinct_sequential_numbers(self):
+        user = get_user_model().objects.create_user('sequence', email='sequence@example.test')
+        EmailAddress.objects.create(user=user, email=user.email, verified=True)
+        InternAccess.objects.create(email=user.email, reason='Synthetic sequence test')
+        blob = compress_photos([synthetic_photo()])[0]
+        barrier = Barrier(2)
+        def upload():
+            try:
+                worker = get_user_model().objects.get(pk=user.pk)
+                barrier.wait(timeout=10)
+                return save_submission(worker, submission(), [blob]).visit_number
+            finally:
+                connections.close_all()
+        with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media,
+                STORAGES={'default': {'BACKEND': 'users.storage.PrivateFileStorage'}}):
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                results = list(executor.map(lambda _: upload(), range(2)))
+        self.assertEqual(sorted(results), [1, 2])
+        self.assertEqual(Patient.objects.count(), 1)
+        self.assertEqual(Visit.objects.count(), 2)

@@ -36,9 +36,10 @@ def authorized_session(credentials_file):
 
 
 class PrivateDriveStorage(Storage):
-    def __init__(self, credentials_file, root_folder_id):
+    def __init__(self, credentials_file, root_folder_id, location_folder_ids=None):
         self.credentials_file = credentials_file
         self.root_folder_id = self._id(root_folder_id)
+        self.location_folder_ids = {name: self._id(value) for name, value in (location_folder_ids or {}).items() if value}
 
     @staticmethod
     def _id(value):
@@ -89,7 +90,7 @@ class PrivateDriveStorage(Storage):
             raise DriveStorageError('Storage write failed; please retry.') from None
 
     def _folder(self, session, parent, name):
-        if not re.fullmatch(r'[A-Za-z0-9_-]+', name):
+        if len(name) > 500 or not re.fullmatch(r'[\w-]+', name, flags=re.UNICODE):
             raise DriveStorageError('Unsafe storage folder name.')
         query = f"'{parent}' in parents and name = '{name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
         with self._request(session, 'GET', API, params={'q': query, 'fields': 'files(id)', 'pageSize': 2}) as response:
@@ -101,7 +102,13 @@ class PrivateDriveStorage(Storage):
 
     def _save(self, name, content):
         parts = PurePosixPath(name.replace('\\', '/')).parts
-        if len(parts) != 3 or not re.fullmatch(r'patient_[a-f0-9]{32}', parts[0]) or not re.fullmatch(r'visit_[a-f0-9]{32}', parts[1]) or not re.fullmatch(r'[a-f0-9]{32}\.jpg', parts[2]):
+        legacy = (len(parts) == 3 and re.fullmatch(r'patient_[a-f0-9]{32}', parts[0])
+            and re.fullmatch(r'visit_[a-f0-9]{32}', parts[1]))
+        located = (len(parts) == 4 and parts[0] in ('AnandHospital', 'TribhuvandasFoundation')
+            and re.fullmatch(r'[0-9]{6}_[\w-]+_[\w-]+', parts[1])
+            and re.fullmatch(r'[1-9][0-9]*_[\w-]+_[\w-]+', parts[2])
+            and all(len(part) <= 500 for part in parts[:-1]))
+        if not (legacy or located) or not re.fullmatch(r'[a-f0-9]{32}\.jpg', parts[-1]):
             raise DriveStorageError('Invalid private photo path.')
         from django.conf import settings
         data = content.read(settings.MAX_IMAGE_BYTES + 1)
@@ -109,7 +116,11 @@ class PrivateDriveStorage(Storage):
             raise DriveStorageError('Compressed photograph exceeds storage bounds.')
         with authorized_session(self.credentials_file) as session:
             parent = self.root_folder_id
-            for folder in parts[:-1]:
+            folders = parts[:-1]
+            if located and self.location_folder_ids.get(parts[0]):
+                parent = self.location_folder_ids[parts[0]]
+                folders = parts[1:-1]
+            for folder in folders:
                 parent = self._folder(session, parent, folder)
             file_id = self._create(session, {'name': parts[-1], 'parents': [parent], 'mimeType': 'image/jpeg'}, data)
         return 'drive/' + file_id

@@ -7,7 +7,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import never_cache
 from .access import can_review, can_submit
-from .forms import PatientDetailsForm, DoctorSearchForm
+from .forms import PatientDetailsForm, DoctorSearchForm, ComparisonLookupForm
+from .case_numbers import ANAND
 from .models import Patient, Photo, AuditEvent, Visit
 from .services import compress_photos, save_submission
 from .identity import display_name, display_role
@@ -46,7 +47,7 @@ def doctor_search(request):
         query = Visit.objects.select_related('patient')
         for key, value in form.cleaned_data.items():
             if value:
-                lookup = 'patient__patient_id' if key == 'patient_id' else (
+                lookup = ('patient__patient_id' if key == 'patient_id' else 'patient__location') if key in ('patient_id', 'location') else (
                     key if key in ('opd_number', 'case_year') else f'details__{key}__icontains')
                 query = query.filter(**{lookup: value})
         visits = list(query[:50])
@@ -103,8 +104,12 @@ def comparison(request):
     photos = []
     comparison_error = ''
     searched = request.method == 'POST'
-    if searched:
-        patient = Patient.objects.filter(patient_id=request.POST.get('patient_id', '').strip()).first()
+    lookup_data = request.POST.copy() if searched else None
+    if lookup_data is not None and 'location' not in lookup_data:
+        lookup_data['location'] = ANAND
+    lookup_form = ComparisonLookupForm(lookup_data, initial={'location': ANAND})
+    if searched and lookup_form.is_valid():
+        patient = Patient.objects.filter(**lookup_form.cleaned_data).first()
         if patient:
             photos = Photo.objects.filter(visit__patient=patient).select_related('visit').order_by('visit__created_at', 'pk')
             try:
@@ -122,7 +127,7 @@ def comparison(request):
                         comparison_error = 'Both photographs must belong to this patient.'
             AuditEvent.objects.create(actor=request.user, action='comparison', object_id=str(patient.pk))
     return render(request, 'comparison.html', {'patient': patient, 'photos': photos, 'selected': selected,
-        'searched': searched, 'comparison_error': comparison_error})
+        'searched': searched, 'comparison_error': comparison_error, 'lookup_form': lookup_form})
 
 
 @login_required

@@ -8,10 +8,10 @@
 </section>
 {% if searched %}<section class="card"><h2>Matching visits</h2>
   {% for group in patient_groups %}<section class="card">
-    <h2>{{ group.name }} · {{ group.patient.patient_id }}</h2>
-    <form method="post" action="{% url 'comparison' %}">{% csrf_token %}<input type="hidden" name="patient_id" value="{{ group.patient.patient_id }}"><button>Compare across visits</button></form>
+    <h2>{{ group.name }} · {{ group.patient.patient_id }} ({{ group.patient.get_location_display }})</h2>
+    <form method="post" action="{% url 'comparison' %}">{% csrf_token %}<input type="hidden" name="patient_id" value="{{ group.patient.patient_id }}"><input type="hidden" name="location" value="{{ group.patient.location }}"><button>Compare across visits</button></form>
     {% for visit in group.visits %}<article class="photo-card">
-    <h3>Visit · {{ visit.created_at|date:'d M Y, H:i' }}</h3>
+    <h3>Visit {{ visit.visit_number }} · {{ visit.created_at|date:'d M Y, H:i' }}</h3>
     <p>{{ visit.created_at|date:'d M Y, H:i' }} · Age at visit: {{ visit.details.age }}{% if visit.details.opd_number %} · Aadhar/ABHA ID: {{ visit.details.opd_number }}{% endif %} · Case year: {{ visit.details.case_year }}<br>{{ visit.details.diagnosis }}</p>
     <a class="button secondary" href="{% url 'visit_detail' visit.pk %}">View this visit</a>
     </article>{% endfor %}

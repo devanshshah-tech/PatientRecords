@@ -132,7 +132,7 @@ def http_workflow(environment):
         image = BytesIO()
         Image.new('RGB', (64, 64), (100, 160, 190)).save(image, 'JPEG')
         boundary = 'clinical-synthetic-' + uuid.uuid4().hex
-        values = {'csrfmiddlewaretoken': csrf, 'submission_id': str(uuid.uuid4()), 'patient_id': 'NEON-SYNTHETIC-001',
+        values = {'csrfmiddlewaretoken': csrf, 'submission_id': str(uuid.uuid4()), 'patient_id': '999991',
             'consent_confirmed': 'on', 'opd_number': 'SYNTHETIC-OPD', 'case_year': '2026',
             'name_of_patient': 'Synthetic verification only', 'age': '25', 'gender': 'O',
             'diagnosis': 'Synthetic test condition', 'name_of_intern': 'Synthetic intern', 'roll_number': '1'}
@@ -148,7 +148,7 @@ def http_workflow(environment):
             assert response.status == 200
             assert b'Patient record and photographs saved securely.' in response.read()
         connection.close()
-        visit = Visit.objects.get(patient__patient_id='NEON-SYNTHETIC-001')
+        visit = Visit.objects.get(patient__patient_id='999991')
         photo = visit.photos.get()
         assert visit.submitted_by_id == intern.pk and visit.consent_confirmed
         assert Patient.objects.get(pk=visit.patient_id).photo_bytes == photo.size_bytes
@@ -161,8 +161,8 @@ def http_workflow(environment):
         print('PASS real HTTP privacy: intern photo request returned 403', flush=True)
         doctor_browser, doctor_jar = browser(doctor_session)
         assert get(doctor_browser, '/doctor/')[0] == 200
-        status, content, _ = post(doctor_browser, doctor_jar, '/doctor/', {'patient_id': 'NEON-SYNTHETIC-001'})
-        assert status == 200 and b'NEON-SYNTHETIC-001' in content
+        status, content, _ = post(doctor_browser, doctor_jar, '/doctor/', {'patient_id': '999991'})
+        assert status == 200 and b'999991' in content
         status, content, headers = get(doctor_browser, f'/photos/{photo.pk}/')
         assert status == 200 and content.startswith(b'\xff\xd8')
         assert headers['Cache-Control'] == 'no-store, private'

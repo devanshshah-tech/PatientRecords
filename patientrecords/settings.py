@@ -59,10 +59,13 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 STORAGES = {'default': {'BACKEND': 'users.storage.PrivateFileStorage'},
     'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'}}
 PHOTO_STORAGE = os.getenv('PHOTO_STORAGE', 'filesystem')
+DRIVE_LOCATION_FOLDER_IDS = {name: os.getenv(key, '') for name, key in (
+    ('AnandHospital', 'DRIVE_ANAND_FOLDER_ID'), ('TribhuvandasFoundation', 'DRIVE_TF_FOLDER_ID'))}
 if PHOTO_STORAGE == 'drive':
     STORAGES['default'] = {'BACKEND': 'users.drive_storage.PrivateDriveStorage', 'OPTIONS': {
         'credentials_file': os.environ['DRIVE_CREDENTIALS_FILE'],
         'root_folder_id': os.environ['DRIVE_ROOT_FOLDER_ID'],
+        'location_folder_ids': DRIVE_LOCATION_FOLDER_IDS,
     }}
 elif PHOTO_STORAGE == 's3':
     STORAGES['default'] = {'BACKEND': 'users.s3_storage.PrivateS3Storage', 'OPTIONS': {
