@@ -12,7 +12,7 @@
     <p>Signed in as <strong>{{ display_name }}</strong> <span class="role-badge">({{ display_role }})</span>.</p>
     <div class="actions">
       {% if can_submit %}<a class="button" href="{% url 'submit_patient_details' %}">New patient visit</a>{% endif %}
-      {% if can_review %}<a class="button" href="{% url 'doctor_search' %}">Find records and compare photos</a>{% endif %}
+      {% if can_review %}<a class="button secondary" href="{% url 'recent_visits' %}">Recent visits</a><a class="button" href="{% url 'doctor_search' %}">Find records and compare photos</a>{% endif %}
       {% if user.is_staff %}<a class="button secondary" href="{% url 'admin:index' %}">Manage access</a>{% endif %}
     </div>
     {% if not can_submit and not can_review %}<p class="notice">Your access is not active. Ask your administrator to check your invitation or expiry date.</p>{% endif %}

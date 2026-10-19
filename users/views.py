@@ -1,3 +1,9 @@
+import datetime
+from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
+from django.core.paginator import Paginator
+from django.db.models import Count
+from django.utils import timezone
 import logging
 import uuid
 from django.contrib.auth.decorators import login_required
@@ -7,7 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import never_cache
 from .access import can_review, can_submit
-from .forms import PatientDetailsForm, DoctorSearchForm, ComparisonLookupForm
+from .forms import PatientDetailsForm, DoctorSearchForm, ComparisonLookupForm, RecentVisitsForm
 from .case_numbers import ANAND
 from .models import Patient, Photo, AuditEvent, Visit
 from .services import compress_photos, save_submission
@@ -79,6 +85,34 @@ def doctor_search(request):
         'patient_groups': list(groups.values()), 'searched': searched})
 
 
+def recent_dates(data=None):
+    today = timezone.localdate(timezone=ZoneInfo('Asia/Kolkata'))
+    return RecentVisitsForm(data if data is not None else {
+        'start_date': today.isoformat(), 'end_date': today.isoformat()})
+
+
+@login_required
+@require_GET
+@never_cache
+def recent_visits(request):
+    if not can_review(request.user):
+        raise PermissionDenied
+    form = recent_dates(request.GET if 'start_date' in request.GET or 'end_date' in request.GET else None)
+    page = None
+    date_query = ''
+    if form.is_valid():
+        start, end = form.cleaned_data['start_date'], form.cleaned_data['end_date']
+        clinic_zone = ZoneInfo('Asia/Kolkata')
+        lower = datetime.datetime.combine(start, datetime.time.min, tzinfo=clinic_zone)
+        upper = datetime.datetime.combine(end + datetime.timedelta(days=1), datetime.time.min, tzinfo=clinic_zone)
+        visits = Visit.objects.filter(created_at__gte=lower, created_at__lt=upper).select_related('patient').annotate(
+            photo_count=Count('photos')).order_by('-created_at', '-pk')
+        page = Paginator(visits, 25).get_page(request.GET.get('page'))
+        date_query = urlencode({'start_date': start.isoformat(), 'end_date': end.isoformat()})
+        AuditEvent.objects.create(actor=request.user, action='recent_visits', object_id='')
+    return render(request, 'recent_visits.html', {'form': form, 'page': page, 'date_query': date_query})
+
+
 @login_required
 @require_GET
 def visit_detail(request, visit_id):
@@ -86,7 +120,17 @@ def visit_detail(request, visit_id):
         raise PermissionDenied
     visit = get_object_or_404(Visit.objects.select_related('patient').prefetch_related('photos'), pk=visit_id)
     AuditEvent.objects.create(actor=request.user, action='visit_view', object_id=str(visit.pk))
-    return render(request, 'visit_detail.html', {'visit': visit})
+    recent_url = ''
+    if request.GET.get('recent') == '1':
+        dates = recent_dates(request.GET)
+        if dates.is_valid():
+            try:
+                page_number = max(1, int(request.GET.get('page', '1')))
+            except (TypeError, ValueError):
+                page_number = 1
+            recent_url = reverse('recent_visits') + '?' + urlencode({
+                **{key: value.isoformat() for key, value in dates.cleaned_data.items()}, 'page': page_number})
+    return render(request, 'visit_detail.html', {'visit': visit, 'recent_url': recent_url})
 
 
 @login_required

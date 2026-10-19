@@ -1,6 +1,6 @@
 import tempfile
 import uuid
-from datetime import timedelta
+from datetime import date, datetime, timedelta, timezone as datetime_timezone
 from io import BytesIO, StringIO
 from pathlib import Path
 from unittest import skipUnless
@@ -270,6 +270,91 @@ class ClinicalWorkflowTests(TestCase):
             append_images=[Image.new('RGB', (10, 10), 'red')], duration=10)
         with self.assertRaises(ValidationError):
             compress_photos([SimpleUploadedFile('animated.png', output.getvalue())])
+
+    def test_recent_visits_authorization_and_home_button(self):
+        url = reverse('recent_visits')
+        self.assertNotContains(self.client.get(reverse('index')), 'Recent visits')
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.intern.is_staff = True
+        self.intern.save()
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.client.logout()
+        self.assertEqual(self.client.get(url).status_code, 302)
+        self.client.force_login(self.doctor)
+        self.assertContains(self.client.get(reverse('index')), 'Recent visits')
+        response = self.client.get(url)
+        self.assertContains(response, 'Back to home')
+        self.assertContains(response, reverse('index'))
+        self.assertContains(response, 'No visits were added')
+        self.assertEqual(response['Cache-Control'], 'no-store, private')
+        self.doctor.user_permissions.clear()
+        self.assertEqual(self.client.get(url).status_code, 403)
+
+    def test_recent_visits_today_uses_india_midnight_and_latest_first(self):
+        from .case_numbers import TF
+        first = self.create_visit()
+        second = self.create_visit(tf_shift=True)
+        before = self.create_visit()
+        after = self.create_visit()
+        # India 20 October starts at 18:30 UTC on 19 October.
+        lower = datetime(2026, 10, 19, 18, 30, tzinfo=datetime_timezone.utc)
+        Visit.objects.filter(pk=first.pk).update(created_at=lower)
+        Visit.objects.filter(pk=second.pk).update(created_at=lower + timedelta(hours=23, minutes=59))
+        Visit.objects.filter(pk=before.pk).update(created_at=lower - timedelta(microseconds=1))
+        Visit.objects.filter(pk=after.pk).update(created_at=lower + timedelta(days=1))
+        self.client.force_login(self.doctor)
+        with patch('users.views.timezone.localdate', return_value=date(2026, 10, 20)) as today:
+            response = self.client.get(reverse('recent_visits'))
+        self.assertEqual(str(today.call_args.kwargs['timezone']), 'Asia/Kolkata')
+        self.assertEqual([v.pk for v in response.context['page']], [second.pk, first.pk])
+        self.assertEqual(second.patient.location, TF)
+        self.assertContains(response, '2 visits')
+        self.assertContains(response, '20 Oct 2026, 00:00')
+        self.assertNotContains(response, '<img src="/photos/')
+        audit = AuditEvent.objects.filter(action='recent_visits').get()
+        self.assertEqual(audit.details, {})
+
+    def test_recent_visits_inclusive_range_pagination_and_return_link(self):
+        first = self.create_visit()
+        stamp = datetime(2026, 10, 20, 12, tzinfo=datetime_timezone.utc)
+        Visit.objects.filter(pk=first.pk).update(created_at=stamp)
+        Visit.objects.bulk_create([Visit(patient=first.patient, submitted_by=self.intern,
+            consent_confirmed=True, details=first.details, created_at=stamp, case_year='2026') for _ in range(26)])
+        self.client.force_login(self.doctor)
+        params = {'start_date': '2026-10-20', 'end_date': '2026-10-21'}
+        response = self.client.get(reverse('recent_visits'), params)
+        self.assertEqual(response.context['page'].paginator.count, 27)
+        self.assertEqual(len(response.context['page']), 25)
+        expected = list(Visit.objects.order_by('-created_at', '-pk').values_list('pk', flat=True))
+        self.assertEqual([v.pk for v in response.context['page']], expected[:25])
+        response = self.client.get(reverse('recent_visits'), {**params, 'page': '2'})
+        self.assertEqual([v.pk for v in response.context['page']], expected[25:])
+        self.assertContains(response, 'Newer visits')
+        detail = self.client.get(reverse('visit_detail', args=[first.pk]), {**params, 'recent': '1', 'page': '2'})
+        self.assertContains(detail, 'Back to recent visits')
+        self.assertEqual(detail.context['recent_url'], reverse('recent_visits') + '?start_date=2026-10-20&end_date=2026-10-21&page=2')
+        # Both endpoints are inclusive; the following day's midnight is excluded.
+        Visit.objects.filter(pk=first.pk).update(created_at=datetime(2026, 10, 21, 18, 29, tzinfo=datetime_timezone.utc))
+        response = self.client.get(reverse('recent_visits'), params)
+        self.assertEqual(response.context['page'].paginator.count, 27)
+        Visit.objects.filter(pk=first.pk).update(created_at=datetime(2026, 10, 21, 18, 30, tzinfo=datetime_timezone.utc))
+        response = self.client.get(reverse('recent_visits'), params)
+        self.assertEqual(response.context['page'].paginator.count, 26)
+
+    def test_recent_visits_invalid_dates_do_not_query_records(self):
+        self.create_visit()
+        self.client.force_login(self.doctor)
+        for params in [
+            {'start_date': '2026-10-22', 'end_date': '2026-10-20'},
+            {'start_date': 'invalid', 'end_date': '2026-10-20'},
+            {'start_date': '2026-10-20'},
+            {'start_date': '2026-10-20', 'end_date': '9999-12-31'},
+        ]:
+            response = self.client.get(reverse('recent_visits'), params)
+            self.assertTrue(response.context['form'].errors)
+            self.assertIsNone(response.context['page'])
+            self.assertNotContains(response, 'Synthetic patient')
+        self.assertFalse(AuditEvent.objects.filter(action='recent_visits').exists())
 
     def test_doctor_search_and_comparison(self):
         first = self.create_visit()

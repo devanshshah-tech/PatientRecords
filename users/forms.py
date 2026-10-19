@@ -73,3 +73,17 @@ class ComparisonLookupForm(forms.Form):
 
     def clean_patient_id(self):
         return normalize_case_number(self.cleaned_data['patient_id'])
+
+
+class RecentVisitsForm(forms.Form):
+    start_date = forms.DateField(label='From', widget=forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'))
+    end_date = forms.DateField(label='Through', widget=forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'))
+
+    def clean(self):
+        cleaned = super().clean()
+        start, end = cleaned.get('start_date'), cleaned.get('end_date')
+        if start and end and start > end:
+            raise forms.ValidationError('The end date must be on or after the start date.')
+        if end == datetime.date.max:
+            self.add_error('end_date', 'Choose an earlier end date.')
+        return cleaned

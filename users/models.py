@@ -74,6 +74,7 @@ class Visit(models.Model):
 
     class Meta:
         ordering = ['-created_at', '-pk']
+        indexes = [models.Index(fields=['-created_at', '-id'], name='visit_recent_timestamp_idx')]
         constraints = [models.UniqueConstraint(fields=['patient', 'visit_number'], name='unique_patient_visit_number')]
 
 
