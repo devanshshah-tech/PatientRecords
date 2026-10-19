@@ -62,7 +62,7 @@ def doctor_search(request):
     visits = []
     searched = request.method == 'POST' and form.is_valid()
     if searched:
-        query = Visit.objects.select_related('patient')
+        query = Visit.objects.select_related('patient').prefetch_related('photos')
         for key, value in form.cleaned_data.items():
             if value:
                 lookup = ('patient__patient_id' if key == 'patient_id' else 'patient__location') if key in ('patient_id', 'location') else (

@@ -98,3 +98,9 @@ Django intern-access administration lists/searches/filters by batch, shows 100 e
 The operator requested classification and deletion controls, not deletion of the current roster. Production verification must prove the existing roster count and all date fingerprints are unchanged after migration. Bulk-delete tests and live smoke checks use synthetic grants only.
 
 Handled visit-save infrastructure failures emit only allowlisted diagnostic codes, operation names and HTTP status/exception categories. Never log exception messages, provider response bodies, URLs, credentials, patient input or stack traces from storage requests. Users continue to receive plain retry guidance. Diagnostics preserve the original upload failure category when a storage write is wrapped after successful cleanup.
+
+## Doctor photograph viewer
+
+Authorized doctor search results show private lazy-loaded thumbnails grouped by patient and visit; visit-detail galleries use the same thumbnails. Clicking a thumbnail opens a native modal image viewer with zoom in/out, fit/reset, bounded pointer drag/pan for mouse and touch, and an X close button. Escape closes it too; keyboard zoom and arrow-key panning are available. Closing restores focus/gallery position and clears the expanded image source. The viewer handles load failures in plain language and remains usable after viewport/orientation changes.
+
+Comparison markup, photo selection and comparison behavior are unchanged; the viewer is not loaded there. Images continue to use only existing same-origin permission-checked opaque photo URLs. No new public/media routes, third-party frontend libraries, browser persistence or patient data in URLs/logs. Search prefetches photo rows to avoid a query per visit; the existing 50-visit search limit remains. Browsers lacking modal dialog support retain the authorized image link as fallback.

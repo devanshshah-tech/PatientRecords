@@ -6,6 +6,7 @@
     "build": "node scripts/project.cjs build",
     "start": "node scripts/project.cjs start",
     "test": "node scripts/project.cjs test",
+    "test:viewer": "node --test tests/photo_viewer.test.cjs",
     "test:camera": "node --test tests/camera.test.cjs",
     "db:migrate": "node scripts/project.cjs migrate"
   },

@@ -11,6 +11,7 @@
     <form method="post" action="{% url 'comparison' %}">{% csrf_token %}<input type="hidden" name="patient_id" value="{{ visit.patient.patient_id }}"><input type="hidden" name="location" value="{{ visit.patient.location }}"><button>Compare across visits</button></form>
   </div>
   <h2>Photographs from this visit</h2>
-  <div class="gallery">{% for photo in visit.photos.all %}<figure class="photo-card"><img src="{% url 'private_photo' photo.pk %}" alt="Photograph from this visit" loading="lazy"></figure>{% empty %}<p>No photographs for this visit.</p>{% endfor %}</div>
+  <div class="gallery">{% for photo in visit.photos.all %}{% include 'photo_thumbnail.html' with photo=photo visit=visit %}{% empty %}<p>No photographs for this visit.</p>{% endfor %}</div>
 </section>
+{% include 'photo_viewer.html' %}
 {% endblock %}

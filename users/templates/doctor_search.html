@@ -14,8 +14,12 @@
     <h3>Visit {{ visit.visit_number }} · {{ visit.created_at|date:'d M Y, H:i' }}</h3>
     <p>{{ visit.created_at|date:'d M Y, H:i' }} · Age at visit: {{ visit.details.age }}{% if visit.details.opd_number %} · Aadhar/ABHA ID: {{ visit.details.opd_number }}{% endif %} · Case year: {{ visit.details.case_year }}<br>{{ visit.details.diagnosis }}</p>
     <a class="button secondary" href="{% url 'visit_detail' visit.pk %}">View this visit</a>
+    <div class="gallery">
+      {% for photo in visit.photos.all %}{% include 'photo_thumbnail.html' with photo=photo visit=visit %}{% empty %}<p>No photographs for this visit.</p>{% endfor %}
+    </div>
     </article>{% endfor %}
   </section>{% empty %}<p>No matching visits found.</p>{% endfor %}
   <p>Results are limited to the latest 50 matching visits. Add filters to narrow your search.</p>
 </section>{% endif %}
+{% include 'photo_viewer.html' %}
 {% endblock %}
