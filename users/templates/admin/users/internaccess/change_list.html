@@ -10,7 +10,7 @@
 {% endblock %}
 {% block result_list %}
   {% if action_form %}
-  <div class="actions" aria-label="Intern access selection">
+  <div class="access-selection-tools" aria-label="Intern access selection">
     <button type="button" id="access-select-all">Select all on this page</button>
     <button type="button" id="access-clear-selection">Clear selection</button>
     {% if can_delete_access %}<button type="button" id="access-delete-selected">Delete selected access</button>{% endif %}
