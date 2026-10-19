@@ -1,5 +1,11 @@
 # Verification record
 
+## Persistent save confirmation and plain retry feedback - 18 October 2026
+
+Replaced the short-lived homepage flash message with a private confirmation page showing the saved patient name and actual persisted image count. JSON and ordinary POSTs go to the same opaque submission-UUID destination. Only the uploader with currently active access can view it; names are escaped, no clinical details go into flash cookies or URL parameters, and reloads/idempotent retries retain the correct original count. The form shows saving progress, brings failures into view and focuses them, retains captures on failure, and hides technical network/JSON/server details behind plain retry instructions. Known storage/database failures return the form with a helpful message; validation guidance remains available.
+
+Local checks: 62 Django tests completed (60 passed, two PostgreSQL-only concurrency skips); camera regressions cover persistent navigation, malformed responses, bad destinations, server failure and connection loss with successful retry. Build/system checks, migration consistency and whitespace checks passed. No model migration is required. A targeted partial-upload regression verifies that a failed second Drive photo removes the first uploaded file, rolls back all visit/photo/audit rows, removes a newly created patient, and preserves an existing patient's previous quota. Live release verification follows CI.
+
 ## Location-specific cases and descriptive folders - 18 October 2026
 
 Preserved the operator's reordered consent field and made the new tf_shift checkbox optional (unticked Anand Hospital, ticked Tribhuvandas Foundation). Added numeric six-digit padding, location-scoped patient identities/quotas, persisted visit indices, first-visit patient folder naming and per-visit reason/intern labels. Doctor search and comparison include location. Existing opaque photo URLs and references remain private and valid; existing files are not moved. Guarded migration normalizes numeric legacy cases, aborts on collisions and backfills chronological visit indices. The two sites use separate case records, as confirmed by the operator.

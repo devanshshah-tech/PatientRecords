@@ -10,6 +10,19 @@
   const submit = document.getElementById('submit-button');
   const previews = document.getElementById('photo-previews');
   const uploadsEnabled = form.dataset?.uploadsEnabled !== 'false';
+  const retryMessage = "We couldn't confirm that the visit and photos were saved. Keep this page open and try again. Your photos are still here.";
+  function showSaveStatus(message, state = 'error') {
+    submitStatus.textContent = message;
+    submitStatus.dataset.state = state;
+    submitStatus.scrollIntoView?.({behavior:'smooth', block:'center'});
+    if (state === 'error') submitStatus.focus?.({preventScroll:true});
+  }
+  function saveError(message) {
+    const error = new Error(message); error.userMessage = message; return error;
+  }
+  function isConfirmationPath(path) {
+    return typeof path === 'string' && /^\/submit-patient-details\/saved\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\/$/.test(path);
+  }
   let stream = null;
   let photos = [];
   let busy = false;
@@ -71,7 +84,7 @@
     if (busy || !form.reportValidity()) return;
     if (!photos.length) { submitStatus.textContent = 'Take at least one photograph before submitting.'; return; }
     busy = true; submit.disabled = true; start.disabled = true; capture.disabled = true;
-    submit.textContent = 'Saving…'; submitStatus.textContent = ''; closeCamera(); start.disabled = true;
+    submit.textContent = 'Saving…'; showSaveStatus('Uploading photos and saving the visit. Please keep this page open.', 'saving'); closeCamera(); start.disabled = true;
     const data = new FormData(form);
     photos.forEach((photo, i) => data.append('patient_images', photo.blob, `capture-${i + 1}.jpg`));
     const controller = new AbortController();
@@ -80,23 +93,26 @@
       const response = await fetch(form.action, {method:'POST', body:data, credentials:'same-origin', headers:{'Accept':'application/json'}, signal:controller.signal});
       if (response.status === 201) {
         const result = await response.json();
-        if (result.redirect_url !== '/') throw new Error('Unexpected save response. Please check your records before retrying.');
+        if (!isConfirmationPath(result.redirect_url)) throw saveError(retryMessage);
         photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; window.location.assign(result.redirect_url); return;
       }
       if (response.redirected) {
-        if (new URL(response.url).pathname !== '/') throw new Error('Your session ended. Sign in again before resubmitting.');
+        const destination = new URL(response.url);
+        if (destination.origin !== new URL(form.action).origin || !isConfirmationPath(destination.pathname)) {
+          throw saveError(destination.pathname.startsWith('/accounts/')
+            ? 'Please sign in again before saving. Keep this page open so you do not lose your photos.' : retryMessage);
+        }
         photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; window.location.assign(response.url); return;
       }
       if (response.status === 200) {
         const documentResult = new DOMParser().parseFromString(await response.text(), 'text/html');
         const errors = [...documentResult.querySelectorAll('.errorlist')].map(e => e.textContent.trim());
-        throw new Error(errors.join(' ') || 'Unable to save. Please check the form.');
+        throw saveError(errors.length ? errors.join(' ') + ' Your photos are still here. Please check the details and try again.' : retryMessage);
       }
-      throw new Error(response.status === 403 ? 'Access denied. Your session or access may have expired.' : 'Save failed. Your photos remain here; retrying this submission will not create a duplicate visit.');
+      throw saveError(response.status === 403
+        ? 'We could not save this visit. Your sign-in or access may have expired. Keep this page open and ask your administrator for help.' : retryMessage);
     } catch (error) {
-      submitStatus.textContent = error.name === 'AbortError' || error instanceof TypeError
-        ? 'Connection failed or timed out. Your photos remain here; retrying this submission will not create a duplicate visit.'
-        : error.message;
+      showSaveStatus(error.userMessage || retryMessage);
     }
     finally { clearTimeout(timeout); busy = false; submit.disabled = false; start.disabled = false; submit.textContent = 'Save patient visit'; }
   });

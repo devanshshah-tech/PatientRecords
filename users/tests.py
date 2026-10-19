@@ -171,6 +171,35 @@ class ClinicalWorkflowTests(TestCase):
                 self.create_visit(patient_id='000003')
             self.assertFalse(Patient.objects.filter(patient_id='000003').exists())
 
+
+    @override_settings(PHOTO_STORAGE='drive')
+    def test_second_photo_upload_failure_rolls_back_entire_visit_and_quota(self):
+        from .drive_storage import DriveStorageError
+        storage_settings = {'default': {'BACKEND': 'users.drive_storage.PrivateDriveStorage',
+            'OPTIONS': {'credentials_file': 'synthetic.json', 'root_folder_id': 'synthetic_root'}},
+            'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}}
+        for existing in (False, True):
+            case = '000004' if existing else '000005'
+            if existing:
+                patient = Patient.objects.create(patient_id=case, photo_bytes=123)
+            with override_settings(STORAGES=storage_settings), \
+                    patch('users.drive_storage.authorized_session'), \
+                    patch('users.drive_storage.PrivateDriveStorage._folder', return_value='synthetic_folder'), \
+                    patch('users.drive_storage.PrivateDriveStorage._create',
+                        side_effect=['first_synthetic_file', DriveStorageError('second upload failed')]), \
+                    patch('users.drive_storage.PrivateDriveStorage.delete') as cleanup:
+                with self.assertRaises(DriveStorageError):
+                    save_submission(self.intern, submission(patient_id=case), [b'synthetic-photo-one', b'synthetic-photo-two'])
+                cleanup.assert_called_once_with('drive/first_synthetic_file')
+            self.assertFalse(Visit.objects.exists())
+            self.assertFalse(Photo.objects.exists())
+            self.assertFalse(AuditEvent.objects.filter(action='submission').exists())
+            if existing:
+                patient.refresh_from_db()
+                self.assertEqual(patient.photo_bytes, 123)
+            else:
+                self.assertFalse(Patient.objects.filter(patient_id=case).exists())
+
     def test_retry_does_not_duplicate_visit_or_quota(self):
         data = submission()
         blobs = compress_photos([synthetic_photo()])
@@ -273,14 +302,64 @@ class ClinicalWorkflowTests(TestCase):
         data['patient_images'] = synthetic_photo()
         response = self.client.post(reverse('submit_patient_details'), data, HTTP_ACCEPT='application/json')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json(), {'redirect_url': '/'})
-        home = self.client.get(reverse('index'))
-        self.assertContains(home, 'Patient record and photographs saved securely. 1 photograph uploaded.')
+        destination = reverse('submission_success', args=[Visit.objects.get().submission_id])
+        self.assertEqual(response.json(), {'redirect_url': destination})
+        self.assertNotIn('messages', response.cookies)
+        for _ in range(2):
+            confirmation = self.client.get(destination)
+            self.assertContains(confirmation, 'Visit added for Synthetic patient')
+            self.assertContains(confirmation, '1 image uploaded successfully.')
+            self.assertEqual(confirmation['Cache-Control'], 'no-store, private')
         invalid = submission(patient_id='')
         invalid['patient_images'] = synthetic_photo()
         response = self.client.post(reverse('submit_patient_details'), invalid, HTTP_ACCEPT='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context['form'].errors)
+
+
+    def test_confirmation_reports_actual_count_for_doctor_and_retries(self):
+        self.client.force_login(self.doctor)
+        data = submission(name_of_patient='<script>synthetic</script>')
+        data['patient_images'] = [synthetic_photo() for _ in range(10)]
+        saved = self.client.post(reverse('submit_patient_details'), data, HTTP_ACCEPT='application/json')
+        self.assertEqual(saved.status_code, 201)
+        confirmation = self.client.get(saved.json()['redirect_url'])
+        self.assertContains(confirmation, '10 images uploaded successfully.')
+        self.assertNotContains(confirmation, '<script>synthetic</script>')
+        self.assertContains(confirmation, '&lt;script&gt;synthetic&lt;/script&gt;')
+        data['patient_images'] = synthetic_photo()
+        retried = self.client.post(reverse('submit_patient_details'), data)
+        self.assertRedirects(retried, saved.json()['redirect_url'])
+        self.assertContains(self.client.get(retried.url), '10 images uploaded successfully.')
+        self.assertEqual(Visit.objects.count(), 1)
+        self.client.force_login(self.intern)
+        self.assertEqual(self.client.get(retried.url).status_code, 404)
+
+    def test_confirmation_requires_current_access_and_original_uploader(self):
+        visit = self.create_visit()
+        url = reverse('submission_success', args=[visit.submission_id])
+        self.assertEqual(self.client.get(url).status_code, 200)
+        self.client.force_login(self.doctor)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_login(self.intern)
+        self.grant.revoked = True
+        self.grant.save()
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.client.logout()
+        self.assertEqual(self.client.get(url).status_code, 302)
+
+    def test_save_failure_returns_plain_retry_message_without_exception_details(self):
+        from django.db import OperationalError
+        from .drive_storage import DriveStorageError
+        for error in (DriveStorageError('technical storage detail'), OperationalError('technical database detail'), OSError('technical disk detail')):
+            data = submission()
+            data['patient_images'] = synthetic_photo()
+            with patch('users.views.save_submission', side_effect=error):
+                response = self.client.post(reverse('submit_patient_details'), data, HTTP_ACCEPT='application/json')
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, 'Please try again.')
+            self.assertNotContains(response, 'technical')
+            self.assertFalse(Visit.objects.exists())
 
     def test_google_invitation_requires_verified_email(self):
         login = SocialLogin(user=get_user_model()(username='new'),

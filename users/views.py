@@ -1,5 +1,4 @@
 import uuid
-from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import FileResponse
@@ -15,6 +14,8 @@ from .identity import display_name, display_role
 from .drive_storage import DriveStorageError
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_GET
+from django.urls import reverse
+from django.db import DatabaseError
 
 
 @never_cache
@@ -80,18 +81,29 @@ def submit_patient_details(request):
     if request.method == 'POST' and form.is_valid():
         try:
             photos = compress_photos(request.FILES.getlist('patient_images'))
-            save_submission(request.user, form.cleaned_data, photos)
+            visit = save_submission(request.user, form.cleaned_data, photos)
         except ValidationError as error:
             form.add_error(None, error)
-        except DriveStorageError:
-            form.add_error(None, 'Photo storage is temporarily unavailable. Please retry; contact your administrator if this continues.')
+        except (DriveStorageError, DatabaseError, OSError):
+            form.add_error(None, "We couldn't save the visit and photos. Please try again. If this keeps happening, ask your administrator for help.")
         else:
-            count = len(photos)
-            messages.success(request, f'Patient record and photographs saved securely. {count} photograph' + ('s' if count != 1 else '') + ' uploaded.')
+            destination = reverse('submission_success', args=[visit.submission_id])
             if 'application/json' in request.headers.get('Accept', ''):
-                return JsonResponse({'redirect_url': '/'}, status=201)
-            return redirect('index')
+                return JsonResponse({'redirect_url': destination}, status=201)
+            return redirect(destination)
     return render(request, 'patient_form.html', {'form': form})
+
+
+@login_required
+@require_GET
+@never_cache
+def submission_success(request, submission_id):
+    if not can_submit(request.user):
+        raise PermissionDenied
+    visit = get_object_or_404(Visit.objects.select_related('patient'),
+        submission_id=submission_id, submitted_by=request.user)
+    return render(request, 'submission_success.html', {'visit': visit,
+        'photo_count': visit.photos.count(), 'can_review': can_review(request.user)})
 
 
 @login_required

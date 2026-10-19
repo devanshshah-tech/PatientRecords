@@ -20,7 +20,7 @@
       <p id="camera-status" role="status" aria-live="polite"></p>
       <div id="photo-previews" class="gallery"></div>
     </fieldset>
-    <p id="submit-status" role="alert"></p>
+    <p id="submit-status" role="alert" aria-live="assertive" tabindex="-1"></p>
     <div class="actions"><button id="submit-button"{% if not uploads_enabled %} disabled{% endif %}>Save patient visit</button><a href="{% url 'index' %}">Back</a></div>
   </form>
 </section>

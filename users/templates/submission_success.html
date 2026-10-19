@@ -1,0 +1,16 @@
+{% extends 'base_entrance.html' %}
+{% block title %}Visit saved | Clinical records{% endblock %}
+{% block content %}
+<section class="card save-confirmation" aria-labelledby="confirmation-title">
+  <p class="eyebrow">Saved successfully</p>
+  <h1 id="confirmation-title">Visit added for {{ visit.details.name_of_patient }}</h1>
+  <p class="confirmation-count">{{ photo_count }} image{{ photo_count|pluralize }} uploaded successfully.</p>
+  <p>Case {{ visit.patient.patient_id }} &middot; {{ visit.patient.get_location_display }} &middot; Visit {{ visit.visit_number }}</p>
+  <p>You can now close this page or add another visit.</p>
+  <div class="actions">
+    <a class="button" href="{% url 'submit_patient_details' %}">Add another visit</a>
+    <a class="button secondary" href="{% url 'index' %}">Back to home</a>
+    {% if can_review %}<a href="{% url 'visit_detail' visit.pk %}">View saved visit</a>{% endif %}
+  </div>
+</section>
+{% endblock %}
