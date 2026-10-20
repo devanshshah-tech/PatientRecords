@@ -1,0 +1,5 @@
+{% extends 'admin/delete_selected_confirmation.html' %}
+{% block content %}
+<p>Deleting these access entries immediately stops intern submissions. Their accounts and past clinical records remain available to authorized doctors. This deletion is recorded in the audit history.</p>
+{{ block.super }}
+{% endblock %}

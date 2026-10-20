@@ -1,0 +1,25 @@
+{% extends 'base_entrance.html' %}
+{% block title %}Find patient records{% endblock %}
+{% block content %}
+<section class="card"><p class="eyebrow">Doctor workspace</p><h1>Find patient records</h1>
+  <a class="button secondary" href="{% url 'index' %}">Back to home</a>
+  <p>Search using a UHID / Case No., patient name, Aadhar/ABHA ID, case year or diagnosis. IDs and case years match exactly; names and diagnoses accept partial text. Searches are combined.</p>
+  <form method="post">{% csrf_token %}{{ form.as_p }}<button>Search records</button></form>
+</section>
+{% if searched %}<section class="card"><h2>Matching visits</h2>
+  {% for group in patient_groups %}<section class="card">
+    <h2>{{ group.name }} · {{ group.patient.patient_id }} ({{ group.patient.get_location_display }})</h2>
+    <form method="post" action="{% url 'comparison' %}">{% csrf_token %}<input type="hidden" name="patient_id" value="{{ group.patient.patient_id }}"><input type="hidden" name="location" value="{{ group.patient.location }}"><button>Compare across visits</button></form>
+    {% for visit in group.visits %}<article class="photo-card">
+    <h3>Visit {{ visit.visit_number }} · {{ visit.created_at|date:'d M Y, H:i' }}</h3>
+    <p>{{ visit.created_at|date:'d M Y, H:i' }} · Age at visit: {{ visit.details.age }}{% if visit.details.opd_number %} · Aadhar/ABHA ID: {{ visit.details.opd_number }}{% endif %} · Case year: {{ visit.details.case_year }}<br>{{ visit.details.diagnosis }}</p>
+    <a class="button secondary" href="{% url 'visit_detail' visit.pk %}">View this visit</a>
+    <div class="gallery">
+      {% for photo in visit.photos.all %}{% include 'photo_thumbnail.html' with photo=photo visit=visit %}{% empty %}<p>No photographs for this visit.</p>{% endfor %}
+    </div>
+    </article>{% endfor %}
+  </section>{% empty %}<p>No matching visits found.</p>{% endfor %}
+  <p>Results are limited to the latest 50 matching visits. Add filters to narrow your search.</p>
+</section>{% endif %}
+{% include 'photo_viewer.html' %}
+{% endblock %}

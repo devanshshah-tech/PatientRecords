@@ -1,0 +1,19 @@
+{% load static %}
+<dialog id="photo-viewer" class="image-viewer" aria-labelledby="photo-viewer-title" aria-describedby="photo-viewer-help">
+  <div class="image-viewer-toolbar">
+    <div><h2 id="photo-viewer-title">Photograph</h2><p id="photo-viewer-caption"></p></div>
+    <div class="image-viewer-controls">
+      <button type="button" id="photo-zoom-out" aria-label="Zoom out">&minus;</button>
+      <output id="photo-zoom-level" aria-live="polite" aria-label="Zoom level">100%</output>
+      <button type="button" id="photo-zoom-in" aria-label="Zoom in">+</button>
+      <button type="button" id="photo-fit">Fit image</button>
+      <button type="button" id="photo-viewer-close" aria-label="Close image viewer" autofocus>&times;</button>
+    </div>
+  </div>
+  <div id="photo-viewer-stage" class="image-viewer-stage" tabindex="0" aria-label="Zoomed photograph. Drag or use arrow keys to move.">
+    <img id="photo-viewer-image" alt="Expanded clinical photograph" draggable="false" hidden>
+    <p id="photo-viewer-status" role="status" aria-live="polite"></p>
+  </div>
+  <p id="photo-viewer-help">Use + and &minus; to zoom. Drag to move around the zoomed photo. Use X or Escape to close.</p>
+</dialog>
+<script src="{% static 'users/photo_viewer.js' %}" defer></script>

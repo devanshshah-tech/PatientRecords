@@ -131,7 +131,15 @@ celerybeat.pid
 *.sage.py
 
 # Environments
+.secrets/
+.tools/
 .env
+.env.*
+!.env.example
+private-media/
+.neon
+.neon.*
+node_modules/
 .venv
 env/
 venv/

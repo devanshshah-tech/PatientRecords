@@ -1,0 +1,5 @@
+{% extends 'admin/base_site.html' %}
+{% block content %}
+<p>Paste the authorized intern roster, copied directly from an Excel email column. No semicolons are needed. Line breaks, tabs, spaces, commas and semicolons are accepted; capital letters and duplicate addresses are handled automatically. Paste email addresses only, without a heading or names. Choose the batch for new invitations. New grants last one calendar year. Existing access, batch labels and dates are kept; extend or revoke individual grants using their edit page.</p>
+<form method="post">{% csrf_token %}{{ form.as_p }}<input type="submit" value="Grant intern access"></form>
+{% endblock %}

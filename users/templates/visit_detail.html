@@ -1,0 +1,17 @@
+{% extends 'base_entrance.html' %}
+{% block title %}Visit details | Anand Hospital{% endblock %}
+{% block content %}
+<section class="card">
+  <p class="eyebrow">Doctor workspace · Single visit</p>
+  <h1>{{ visit.details.name_of_patient }}</h1>
+  <p>UHID / Case No.: {{ visit.patient.patient_id }} &middot; {{ visit.patient.get_location_display }} &middot; Visit {{ visit.visit_number }}</p>
+  <p>{{ visit.created_at|date:'d M Y, H:i' }} · Age at visit: {{ visit.details.age }} · Case year: {{ visit.case_year }}</p>
+  <p>Diagnosis: {{ visit.details.diagnosis }}</p>
+  <div class="actions">{% if recent_url %}<a class="button secondary" href="{{ recent_url }}">Back to recent visits</a>{% endif %}<a class="button secondary" href="{% url 'doctor_search' %}">Back to patient records</a><a href="{% url 'index' %}">Home</a>
+    <form method="post" action="{% url 'comparison' %}">{% csrf_token %}<input type="hidden" name="patient_id" value="{{ visit.patient.patient_id }}"><input type="hidden" name="location" value="{{ visit.patient.location }}"><button>Compare across visits</button></form>
+  </div>
+  <h2>Photographs from this visit</h2>
+  <div class="gallery">{% for photo in visit.photos.all %}{% include 'photo_thumbnail.html' with photo=photo visit=visit %}{% empty %}<p>No photographs for this visit.</p>{% endfor %}</div>
+</section>
+{% include 'photo_viewer.html' %}
+{% endblock %}

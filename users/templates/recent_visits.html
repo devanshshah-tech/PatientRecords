@@ -1,0 +1,33 @@
+{% extends 'base_entrance.html' %}
+{% block title %}Recent visits{% endblock %}
+{% block content %}
+<section class="card">
+  <p class="eyebrow">Doctor workspace</p><h1>Recent visits</h1>
+  <a class="button secondary" href="{% url 'index' %}">Back to home</a>
+  <p>Visits from both hospitals. Dates and times are in India time (IST). Choose the same date in both fields to view one day.</p>
+  <form method="get">{{ form.as_p }}<div class="actions"><button>Show visits</button><a class="button secondary" href="{% url 'recent_visits' %}">Today</a></div></form>
+</section>
+{% if page is not None %}
+<section class="card">
+  <h2>{{ page.paginator.count }} visit{{ page.paginator.count|pluralize }} &middot; {{ form.cleaned_data.start_date|date:'d M Y' }} to {{ form.cleaned_data.end_date|date:'d M Y' }}</h2>
+  <p>Latest visits first.</p>
+  {% for visit in page %}
+  <article class="photo-card">
+    <h3>{{ visit.details.name_of_patient }}</h3>
+    <p>UHID / Case No.: {{ visit.patient.patient_id }} &middot; {{ visit.patient.get_location_display }} &middot; Visit {{ visit.visit_number }}<br>
+    {{ visit.created_at|date:'d M Y, H:i' }} IST<br>
+    Visit reason: {{ visit.details.diagnosis }}<br>
+    Intern: {{ visit.details.name_of_intern }} &middot; {{ visit.photo_count }} photo{{ visit.photo_count|pluralize }}</p>
+    <a class="button secondary" href="{% url 'visit_detail' visit.pk %}?recent=1&amp;{{ date_query }}&amp;page={{ page.number }}">View visit and photos</a>
+  </article>
+  {% empty %}<p>No visits were added during these dates.</p>{% endfor %}
+  {% if page.paginator.num_pages > 1 %}
+  <nav class="actions" aria-label="Visit pages">
+    {% if page.has_previous %}<a class="button secondary" href="?{{ date_query }}&amp;page={{ page.previous_page_number }}">Newer visits</a>{% endif %}
+    <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a class="button secondary" href="?{{ date_query }}&amp;page={{ page.next_page_number }}">Older visits</a>{% endif %}
+  </nav>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

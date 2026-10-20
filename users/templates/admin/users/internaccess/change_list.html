@@ -1,0 +1,20 @@
+{% extends 'admin/change_list.html' %}
+{% block object-tools-items %}
+  {% if has_add_permission %}<li><a href="{% url 'admin:users_internaccess_invite' %}">Invite semester interns</a></li>{% endif %}
+  {{ block.super }}
+{% endblock %}
+
+{% block content_title %}
+  {{ block.super }}
+  <p>Filter by batch to manage a cohort. Deleting access stops intern submissions immediately; accounts and past clinical records are retained.</p>
+{% endblock %}
+{% block result_list %}
+  {% if action_form %}
+  <div class="access-selection-tools" aria-label="Intern access selection">
+    <button type="button" id="access-select-all">Select all on this page</button>
+    <button type="button" id="access-clear-selection">Clear selection</button>
+    {% if can_delete_access %}<button type="button" id="access-delete-selected">Delete selected access</button>{% endif %}
+  </div>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

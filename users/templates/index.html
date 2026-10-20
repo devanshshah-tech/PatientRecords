@@ -1,18 +1,22 @@
-{% extends "base_entrance.html" %}
-
-{% block title %}Sign in{% endblock %}
-
+{% extends 'base_entrance.html' %}
+{% load socialaccount %}
+{% block title %}Clinical records{% endblock %}
 {% block content %}
-    {% load socialaccount %}
-    {% if not user.is_authenticated %}
-        <h2>Login</h2>
-        <a href="{% provider_login_url 'google' %}">Login</a>
-    {% else %}
-        <p>You are signed in as {{user}}</p>
-        <a href="{% url 'account_logout' %}">Logout</a>
-        <br>
-        <a href="{% url 'submit_patient_details' %}">
-            <button>Patient Form</button>
-        </a>
-    {% endif %}
+<section class="card">
+  <p class="eyebrow">Clinical documentation</p>
+  <h1>Records for better follow-up</h1>
+  {% if not user.is_authenticated %}
+    <p>Sign in using the Google account invited by your administrator.</p>
+    <a class="button" href="{% provider_login_url 'google' %}">Sign in with Google</a>
+  {% else %}
+    <p>Signed in as <strong>{{ display_name }}</strong> <span class="role-badge">({{ display_role }})</span>.</p>
+    <div class="actions">
+      {% if can_submit %}<a class="button" href="{% url 'submit_patient_details' %}">New patient visit</a>{% endif %}
+      {% if can_review %}<a class="button secondary" href="{% url 'recent_visits' %}">Recent visits</a><a class="button" href="{% url 'doctor_search' %}">Find records and compare photos</a>{% endif %}
+      {% if user.is_staff %}<a class="button secondary" href="{% url 'admin:index' %}">Manage access</a>{% endif %}
+    </div>
+    {% if not can_submit and not can_review %}<p class="notice">Your access is not active. Ask your administrator to check your invitation or expiry date.</p>{% endif %}
+    <form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button class="secondary">Sign out</button></form>
+  {% endif %}
+</section>
 {% endblock %}

@@ -1,0 +1,17 @@
+{
+  "name": "patientrecords",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/project.cjs build",
+    "start": "node scripts/project.cjs start",
+    "test": "node scripts/project.cjs test",
+    "test:viewer": "node --test tests/photo_viewer.test.cjs",
+    "test:camera": "node --test tests/camera.test.cjs",
+    "db:migrate": "node scripts/project.cjs migrate"
+  },
+  "dependencies": {
+    "@neon/config": "^1.9.1",
+    "@neon/env": "^1.6.2"
+  }
+}

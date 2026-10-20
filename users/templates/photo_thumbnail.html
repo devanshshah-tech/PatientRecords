@@ -1,0 +1,6 @@
+<figure class="photo-card">
+  <a class="photo-preview" href="{% url 'private_photo' photo.pk %}" data-photo-viewer data-caption="Visit {{ visit.visit_number }} | {{ visit.created_at|date:'d M Y, H:i' }}">
+    <img src="{% url 'private_photo' photo.pk %}" alt="Photograph from visit {{ visit.visit_number }}. Open to enlarge." loading="lazy">
+    <span>Expand photo</span>
+  </a>
+</figure>

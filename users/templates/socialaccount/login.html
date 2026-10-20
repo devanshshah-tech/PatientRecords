@@ -1,37 +1,32 @@
-{% extends "socialaccount/base_entrance.html" %}
-{% load i18n %}
-{% load allauth %}
-{% block head_title %}
-    {% trans "Sign In" %}
-{% endblock head_title %}
-
-{% block extra_head %}
-    {% with disable_base_messages=True %}
-    {% endwith %}
-{% endblock extra_head %}
-
+﻿{% extends 'base_entrance.html' %}
+{% block title %}Sign in | Anand Hospital{% endblock %}
 {% block content %}
-    {% if process == "connect" %}
-        {% element h1 %}
-            {% blocktrans with provider.name as provider %}Connect {{ provider }}{% endblocktrans %}
-        {% endelement %}
-        {% element p %}
-            {% blocktrans with provider.name as provider %}You are about to connect a new third-party account from {{ provider }}.{% endblocktrans %}
-        {% endelement %}
+<section class="signin-layout" aria-labelledby="signin-title">
+  <div class="signin-intro">
+    <p class="eyebrow">Anand Hospital · Clinical records</p>
+    <h1 id="signin-title">Better care starts with a clear record.</h1>
+    <p class="signin-description">A dedicated workspace for patient visits, clinical photographs and follow-up care.</p>
+    <div class="signin-feature"><span aria-hidden="true">01</span><div><h2>Document each visit</h2><p>Capture patient photographs with consent and keep visits together.</p></div></div>
+    <div class="signin-feature"><span aria-hidden="true">02</span><div><h2>Follow progress over time</h2><p>Authorized doctors can review records and compare photographs.</p></div></div>
+  </div>
+  <div class="card signin-card">
+    <span class="signin-mark" aria-hidden="true">+</span>
+    <p class="eyebrow">Your clinical workspace</p>
+    {% if process == 'connect' %}
+      <h2>Connect your account</h2>
+      <p>Connect your authorized {{ provider.name }} account to this workspace.</p>
     {% else %}
-        {% element h1 %}
-            {% blocktrans with provider.name as provider %}Sign In Via {{ provider }}{% endblocktrans %}
-        {% endelement %}
-        {% element p %}
-            {% blocktrans with provider.name as provider %}You are about to sign in using a third-party account from {{ provider }}.{% endblocktrans %}
-        {% endelement %}
+      <h2>Welcome back</h2>
+      <p>Sign in with the Google account your administrator has approved.</p>
     {% endif %}
-    {% element form method="post" no_visible_fields=True %}
-        {% slot actions %}
-            {% csrf_token %}
-            {% element button type="submit" %}
-                {% trans "Continue" %}
-            {% endelement %}
-        {% endslot %}
-    {% endelement %}
-{% endblock content %}
+    <form method="post" class="signin-form">
+      {% csrf_token %}
+      <button type="submit" class="google-signin"><span class="google-letter" aria-hidden="true">G</span>Continue with {{ provider.name }}</button>
+    </form>
+    <p class="signin-account-hint">Have more than one Google account? Choose your approved hospital or intern account on the next screen.</p>
+    <div class="signin-help"><h3>Need access?</h3><p>Ask your administrator to check your invitation or access dates.</p></div>
+    <p class="signin-privacy">For authorized hospital personnel. Patient records and photographs are available only according to your assigned access.</p>
+    <a class="signin-back" href="{% url 'index' %}">Back to home</a>
+  </div>
+</section>
+{% endblock %}
