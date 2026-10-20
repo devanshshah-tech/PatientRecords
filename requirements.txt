@@ -1,6 +1,6 @@
-﻿Django==5.2.18
+Django==5.2.18
 django-allauth[socialaccount]==65.19.7
-Pillow==12.3.0
+Pillow==13.0.0
 waitress==3.0.2
 whitenoise==6.8.2
 psycopg[binary]==3.3.6
