@@ -10,12 +10,12 @@
   <link rel="stylesheet" href="{% static 'users/app.css' %}">
 </head>
 <body>
-  <header><a href="{% url 'index' %}" class="brand">Clinical records</a><span>Patient documentation</span></header>
+  <header><a href="{% url 'index' %}" class="brand">Patient Records</a><span>Patient documentation</span></header>
   <main>
     <div class="hospital-identity"><img src="{% static 'Hospital_Logo.jpg' %}" alt="Anand Hospital" width="702" height="198"></div>
     {% for message in messages %}<p role="status" class="notice">{{ message }}</p>{% endfor %}
     {% block content %}{% endblock %}
   </main>
-  <footer>Use only for authorized clinical documentation. Obtain consent before taking photographs.</footer>
+  <footer>Use only for authorized clinical documentation. Obtain consent before taking photographs. <a href="{% url 'privacy_policy' %}">Privacy policy</a></footer>
 </body>
 </html>
