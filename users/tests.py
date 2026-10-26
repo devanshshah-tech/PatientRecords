@@ -60,6 +60,24 @@ class ClinicalWorkflowTests(TestCase):
     def create_visit(self, **kwargs):
         return save_submission(self.intern, submission(**kwargs), compress_photos([synthetic_photo()]))
 
+    def test_public_home_and_privacy_need_no_login_and_expose_no_clinical_records(self):
+        self.create_visit()
+        self.client.logout()
+        home = self.client.get(reverse('index'))
+        self.assertContains(home, '<h1>Patient Records</h1>')
+        self.assertContains(home, 'propose a diagnosis')
+        self.assertContains(home, reverse('privacy_policy'))
+        self.assertNotContains(home, 'Synthetic patient')
+        policy = self.client.get(reverse('privacy_policy'))
+        self.assertContains(policy, 'Google Drive')
+        self.assertContains(policy, 'Retention and deletion')
+        self.assertContains(policy, 'Back to home')
+        self.assertNotContains(policy, 'Synthetic patient')
+        self.assertEqual(self.client.post(reverse('privacy_policy')).status_code, 405)
+        health = self.client.get(reverse('health'))
+        self.assertEqual(health.content, b'ok')
+        self.assertEqual(self.client.get(reverse('doctor_search')).status_code, 302)
+
     def test_unlisted_and_unverified_users_cannot_submit(self):
         self.assertFalse(can_submit(AnonymousUser()))
         EmailAddress.objects.filter(user=self.intern).update(verified=False)
