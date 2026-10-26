@@ -1,10 +1,13 @@
 {% extends 'base_entrance.html' %}
 {% load socialaccount %}
-{% block title %}Clinical records{% endblock %}
+{% block title %}Patient Records{% endblock %}
 {% block content %}
 <section class="card">
   <p class="eyebrow">Clinical documentation</p>
-  <h1>Records for better follow-up</h1>
+  <h1>Patient Records</h1>
+  <p>Clinical documentation for teaching and follow-up at Anand Hospital and Tribhuvandas Foundation.</p>
+  <p>Invited interns record patient visits, propose a diagnosis and capture clinical photographs with patient consent. Authorized doctors review the proposed diagnosis with interns and compare photographs across follow-up visits.</p>
+  <p>Clinical records are restricted to authorized staff. Patients and members of the public cannot browse photographs through this website. <a href="{% url 'privacy_policy' %}">Read our privacy policy</a>.</p>
   {% if not user.is_authenticated %}
     <p>Sign in using the Google account invited by your administrator.</p>
     <a class="button" href="{% provider_login_url 'google' %}">Sign in with Google</a>

@@ -1,0 +1,36 @@
+{% extends 'base_entrance.html' %}
+{% block title %}Privacy policy | Patient Records{% endblock %}
+{% block content %}
+<article class="card">
+  <p class="eyebrow">Patient Records</p>
+  <h1>Privacy policy</h1>
+  <p>Last updated: 24 October 2026</p>
+  <a class="button secondary" href="{% url 'index' %}">Back to home</a>
+  <h2>Purpose and responsibility</h2>
+  <p>Patient Records supports authorized clinical staff at Anand Hospital and Tribhuvandas Foundation. Interns document visits and propose diagnoses for doctor-led teaching. Doctors can review records and compare clinical photographs during follow-up. This is not a public patient-photo service or an automated diagnosis service. The clinic administering the records is responsible for their clinical use and for handling privacy requests.</p>
+  <h2>Information we collect</h2>
+  <ul>
+    <li><strong>Accounts:</strong> Google account identifier, verified email address, name and basic profile information returned during sign-in; access role, intern batch, grant dates and administrative access decisions.</li>
+    <li><strong>Clinical records:</strong> hospital/location, UHID or case number, patient name, age, gender, case year, proposed diagnosis or visit reason, previous case details, optional Aadhar/ABHA identifier, intern details, consent confirmation, visit time and photographs submitted by authorized staff.</li>
+    <li><strong>Operational information:</strong> access and action audit events, essential session and security cookies, and technical request/error information processed by the application and hosting providers.</li>
+  </ul>
+  <h2>How information is used</h2>
+  <p>Account information verifies identity, matches invitations and enforces access. Clinical information links visits to the correct hospital and case, supports supervised teaching and permits authorized follow-up review. Operational information supports security, troubleshooting and access accountability. Staff must obtain the patient's consent before clinical photographs and storage; Google authorization is not a substitute for patient consent.</p>
+  <h2>Google sign-in and Google Drive</h2>
+  <p>Staff sign-in requests basic Google identity information: email, name and profile. Signing in does not grant this app access to an intern's or doctor's personal Drive, Gmail, contacts or calendar.</p>
+  <p>A separate authorization by the clinic's storage account permits private Google Drive storage. The app uses the narrow <code>drive.file</code> permission to create and access files it creates or that are explicitly made available to it, rather than requesting access to all Drive files. It creates clinical folders, uploads compressed photographs, reads them for authorized review, and can delete app-managed files during failed-upload cleanup or authorized maintenance. Stored file references link photographs to database records.</p>
+  <p>Google user data is used only for the functions described here. We do not sell it, use it for advertising, or use it to train general-purpose AI models. Our use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including its Limited Use requirements.</p>
+  <h2>Storage, sharing and access</h2>
+  <p>Render hosts the application, Neon PostgreSQL stores structured records and account/access data, and Google Drive stores clinical photographs under the clinic's authorized account. Cloudflare provides domain/DNS and may proxy website traffic. Providers process information needed to deliver their services under their own terms and security practices. Application and database hosting are in Singapore; processing is not confined to India.</p>
+  <p>Interns may submit during an active access grant. Browsing clinical records and retrieving photographs require explicit doctor permissions; access administrators manage invitations and grants. Clinic storage-account owners and authorized infrastructure administrators may also have administrative access. Information may be disclosed when required by applicable law. Clinical images are not sent as email attachments or intentionally published through public media links.</p>
+  <h2>Security and cookies</h2>
+  <p>The application uses HTTPS, server-side access checks and private image delivery. Photographs are re-encoded and embedded metadata is removed before storage. Essential session and CSRF cookies support sign-in and secure forms. The application does not include advertising trackers or third-party frontend analytics. No system can guarantee absolute security, and authorized users' devices may retain browser or operating-system data.</p>
+  <h2>Retention and deletion</h2>
+  <p>Clinical records are not automatically deleted after an intern's access expires, after 14 days, or after a fixed period in the current application. The clinic determines retention according to its clinical responsibilities and applicable requirements. Revoking an intern's access does not delete their historical submissions.</p>
+  <p>To request access to, correction of, or deletion of your information, contact the clinic using the address below. The clinic will verify your identity and authority and assess the request against clinical and applicable record-retention obligations. There is no public self-service deletion page. Authorized deletion must address both database records and associated Drive files; provider-retained copies may follow separate provider retention processes.</p>
+  <p>Google account holders can withdraw the app's Google access through their Google Account security settings. Withdrawal stops the relevant future access; it does not automatically delete existing clinical records. Revoking the clinic storage authorization can prevent photograph retrieval until the clinic reconnects it.</p>
+  <h2>Contact and changes</h2>
+  <p>For privacy questions or record requests, contact the clinic administrator at <a href="mailto:cases@ahmcsrksm.in">cases@ahmcsrksm.in</a> or speak to your treating clinic. Do not send clinical photographs or sensitive identity documents by ordinary email; ask the clinic for an appropriate channel.</p>
+  <p>Updates will be published on this page with a revised date. Material changes should be reviewed by the clinic before changing how information is used.</p>
+</article>
+{% endblock %}
