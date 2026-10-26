@@ -17,7 +17,8 @@ def csrf_probe(request):
     return HttpResponse(render_to_string('base_entrance.html', request=request))
 
 
-urlpatterns = [path('csrf-probe/', csrf_probe, name='index')]
+urlpatterns = [path('csrf-probe/', csrf_probe, name='index'),
+    path('privacy/', lambda request: HttpResponse('Privacy policy'), name='privacy_policy')]
 
 
 @override_settings(ROOT_URLCONF=__name__, ALLOWED_HOSTS=['testserver'],
