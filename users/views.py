@@ -47,6 +47,11 @@ def health(request):
     return HttpResponse('ok', content_type='text/plain')
 
 
+@require_GET
+def privacy_policy(request):
+    return render(request, 'privacy_policy.html')
+
+
 @never_cache
 def access_denied(request):
     return render(request, 'access_denied.html', status=403)
