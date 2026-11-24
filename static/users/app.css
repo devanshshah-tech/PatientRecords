@@ -5,3 +5,24 @@
 
 .photo-preview{display:block;text-decoration:none}.photo-preview span{display:block;margin-top:.4rem;font-size:.9rem;text-align:center}.photo-preview:focus-visible{outline-offset:4px}
 .image-viewer{width:96vw;max-width:1400px;height:90vh;height:90dvh;max-height:none;padding:0;border:1px solid #526860;border-radius:14px;background:#10231e;color:#fff;overflow:hidden}.image-viewer[open]{display:flex;flex-direction:column}.image-viewer::backdrop{background:rgba(0,0,0,.82)}.image-viewer-toolbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:.8rem 1rem;border-bottom:1px solid #526860}.image-viewer-toolbar h2{margin:0;font-size:1.1rem}.image-viewer-toolbar p{margin:.2rem 0 0;font-size:.85rem}.image-viewer-controls{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}.image-viewer-controls button{min-width:44px;min-height:44px;padding:.4rem .7rem;background:#1d6b58;border-color:#80b7a6}.image-viewer-controls output{min-width:3.5rem;text-align:center}.image-viewer-controls #photo-viewer-close{font-size:1.5rem;background:#fff;color:#17342f;border-color:#fff}.image-viewer-stage{position:relative;display:flex;align-items:center;justify-content:center;flex:1;min-height:0;overflow:hidden;touch-action:none;user-select:none}.image-viewer-stage.is-zoomed{cursor:grab}.image-viewer-stage.is-dragging{cursor:grabbing}#photo-viewer-image{display:block;flex:none;max-width:none;max-height:none;object-fit:contain;transform-origin:center;pointer-events:none;user-select:none}#photo-viewer-image[hidden]{display:none}#photo-viewer-status{position:absolute;max-width:32rem;padding:1rem;text-align:center}#photo-viewer-help{margin:0;padding:.6rem 1rem;border-top:1px solid #526860;font-size:.8rem;color:#d6e2dc}@media(max-width:600px){.image-viewer-toolbar{gap:.5rem}.image-viewer-toolbar>div:first-child{width:100%}.image-viewer-controls{width:100%}.image-viewer-controls #photo-viewer-close{margin-left:auto}}
+.comparison-visit {
+    border-top: 2px solid var(--line);
+    margin: 1rem 0;
+}
+.comparison-image {
+    aspect-ratio: 1;
+    max-width: 100%;
+    background: #eef2ef;
+}
+.comparison .comparison-image img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+}
+.comparison-rotation:not([hidden]) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-top: .5rem;
+}

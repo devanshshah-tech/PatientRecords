@@ -103,7 +103,9 @@ Handled visit-save infrastructure failures emit only allowlisted diagnostic code
 
 Authorized doctor search results show private lazy-loaded thumbnails grouped by patient and visit; visit-detail galleries use the same thumbnails. Clicking a thumbnail opens a native modal image viewer with zoom in/out, fit/reset, bounded pointer drag/pan for mouse and touch, and an X close button. Escape closes it too; keyboard zoom and arrow-key panning are available. Closing restores focus/gallery position and clears the expanded image source. The viewer handles load failures in plain language and remains usable after viewport/orientation changes.
 
-Comparison markup, photo selection and comparison behavior are unchanged; the viewer is not loaded there. Images continue to use only existing same-origin permission-checked opaque photo URLs. No new public/media routes, third-party frontend libraries, browser persistence or patient data in URLs/logs. Search prefetches photo rows to avoid a query per visit; the existing 50-visit search limit remains. Browsers lacking modal dialog support retain the authorized image link as fallback.
+Comparison uses the existing same-origin permission-checked opaque photo URLs. The search and visit detail photo viewer remains limited to those pages. Search prefetches photo rows to avoid a query per visit and continues to return at most 50 visits. Browsers lacking modal dialog support retain the authorized image link as fallback.
+
+Interns submit photographs on the day they capture them. The server uses the Asia/Kolkata submission day for numbering, with no backdate field. New submissions for the same patient and location on that day reuse the first numbered visit for the day. Each submission retains its own photographs, timestamp, consent, uploader and details. Older visit numbers remain as assigned. Comparison separates numbered groups with a line and shows the date. Each selected photo can rotate independently in 90-degree increments in the browser. The saved photograph and metadata remain unchanged.
 
 
 ## Recent visits

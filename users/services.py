@@ -1,11 +1,14 @@
+from datetime import datetime, time, timedelta
 from io import BytesIO
 import warnings
+from zoneinfo import ZoneInfo
 from PIL import Image, ImageOps, UnidentifiedImageError
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.db import transaction, IntegrityError, connection
 from django.db.models import F, Max
+from django.utils import timezone
 from .case_numbers import ANAND, TF, normalize_case_number, folder_words
 from .access import can_submit
 from .models import Patient, Visit, Photo, AuditEvent
@@ -83,14 +86,24 @@ def save_submission(user, details, photos):
                 photo_bytes__lte=settings.PATIENT_PHOTO_QUOTA_BYTES - size).update(photo_bytes=F('photo_bytes') + size)
             if not reserved:
                 raise ValidationError('This patient has reached the photograph storage limit. Contact a doctor.')
-            previous = Visit.objects.filter(patient=patient).order_by('visit_number', 'created_at', 'pk').first()
-            visit_number = (Visit.objects.filter(patient=patient).aggregate(number=Max('visit_number'))['number'] or 0) + 1
+            visits = Visit.objects.filter(patient=patient)
+            submitted_at = timezone.now()
+            clinic_timezone = ZoneInfo('Asia/Kolkata')
+            clinic_day = timezone.localdate(submitted_at, clinic_timezone)
+            start = datetime.combine(clinic_day, time.min, clinic_timezone)
+            same_day_number = (visits.filter(created_at__gte=start, created_at__lt=start + timedelta(days=1),
+                visit_number__isnull=False).order_by('visit_number').values_list('visit_number', flat=True).first())
+            if same_day_number is None:
+                visit_number = (visits.aggregate(number=Max('visit_number'))['number'] or 0) + 1
+            else:
+                visit_number = same_day_number
+            previous = visits.order_by('visit_number', 'created_at', 'pk').first()
             patient_folder = previous.patient_folder_name if previous else ''
             if not patient_folder:
                 first_details = previous.details if previous else details
                 patient_folder = f'{patient.patient_id}_{folder_words(first_details.get("name_of_patient", ""))}_{folder_words(first_details.get("diagnosis", ""))}'
             visit = Visit.objects.create(patient=patient, submitted_by=user, consent_confirmed=True,
-                visit_number=visit_number, patient_folder_name=patient_folder,
+                visit_number=visit_number, created_at=submitted_at, patient_folder_name=patient_folder,
                 submission_id=details['submission_id'],
                 opd_number=details['opd_number'], case_year=details['case_year'],
                 details={k: v for k, v in details.items() if k not in ('patient_id', 'consent_confirmed', 'submission_id')})

@@ -394,6 +394,9 @@ class ClinicalWorkflowTests(TestCase):
         response = self.client.post(reverse('comparison'), {'patient_id': '000001',
             'photos': [str(first.photos.get().pk), str(second.photos.get().pk)]})
         self.assertEqual(len(response.context['selected']), 2)
+        self.assertContains(response, 'class="comparison-visit"', count=1)
+        self.assertContains(response, 'Rotate left', count=2)
+        self.assertContains(response, 'Rotate right', count=2)
         self.assertNotContains(response, 'users/photo_viewer.js')
         self.assertNotContains(response, 'data-photo-viewer')
         self.assertEqual(response['Cache-Control'], 'no-store, private')
@@ -847,7 +850,23 @@ class ClinicalWorkflowTests(TestCase):
         first = self.create_visit(patient_id='2413')
         again = self.create_visit(patient_id='002413')
         self.assertEqual(first.patient_id, again.patient_id)
-        self.assertEqual([first.visit_number, again.visit_number], [1, 2])
+        self.assertEqual([first.visit_number, again.visit_number], [1, 1])
+
+    def test_retakes_share_visit_number_and_next_clinic_day_starts_new_visit(self):
+        first = self.create_visit()
+        retake = self.create_visit(name_of_intern='Retake Intern')
+        self.assertEqual(retake.visit_number, first.visit_number)
+        self.assertEqual(retake.details['name_of_intern'], 'Retake Intern')
+        for visit in (first, retake):
+            Visit.objects.filter(pk=visit.pk).update(created_at=visit.created_at - timedelta(days=1))
+        followup = self.create_visit()
+        self.assertEqual(followup.visit_number, first.visit_number + 1)
+
+        self.client.force_login(self.doctor)
+        response = self.client.post(reverse('comparison'), {'patient_id': first.patient.patient_id})
+        self.assertContains(response, 'class="comparison-visit"', count=2)
+        self.assertEqual(list(response.context['photos']),
+                         [first.photos.get(), retake.photos.get(), followup.photos.get()])
 
     @override_settings(PHOTO_STORAGE='drive')
     def test_location_folder_names_use_first_visit_and_retry_is_stable(self):
@@ -867,7 +886,7 @@ class ClinicalWorkflowTests(TestCase):
         self.assertNotEqual(first.patient_id, other.patient_id)
         self.assertEqual(other.visit_number, 1)
         self.assertTrue(photo_path(second.photos.get(), 'ignored').startswith(
-            'AnandHospital/002413_Synthetic-Patient-Name_First-Visit-Reason/2_Follow-Up-Reason_Another-Intern-Name/'))
+            'AnandHospital/002413_Synthetic-Patient-Name_First-Visit-Reason/1_Follow-Up-Reason_Another-Intern-Name/'))
         self.assertTrue(photo_path(other.photos.get(), 'ignored').startswith('TribhuvandasFoundation/002413_'))
         self.client.force_login(self.doctor)
         result = self.client.post(reverse('doctor_search'), {'patient_id': '2413'})
@@ -969,7 +988,7 @@ class ConcurrentQuotaTests(TransactionTestCase):
         self.assertEqual(Visit.objects.count(), 1)
 
 
-    def test_concurrent_followups_get_distinct_sequential_numbers(self):
+    def test_concurrent_same_day_submissions_share_a_visit_number(self):
         user = get_user_model().objects.create_user('sequence', email='sequence@example.test')
         EmailAddress.objects.create(user=user, email=user.email, verified=True)
         InternAccess.objects.create(email=user.email, reason='Synthetic sequence test')
@@ -986,6 +1005,6 @@ class ConcurrentQuotaTests(TransactionTestCase):
                 STORAGES={'default': {'BACKEND': 'users.storage.PrivateFileStorage'}}):
             with ThreadPoolExecutor(max_workers=2) as executor:
                 results = list(executor.map(lambda _: upload(), range(2)))
-        self.assertEqual(sorted(results), [1, 2])
+        self.assertEqual(sorted(results), [1, 1])
         self.assertEqual(Patient.objects.count(), 1)
         self.assertEqual(Visit.objects.count(), 2)

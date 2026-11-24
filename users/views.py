@@ -190,7 +190,8 @@ def comparison(request):
     if searched and lookup_form.is_valid():
         patient = Patient.objects.filter(**lookup_form.cleaned_data).first()
         if patient:
-            photos = Photo.objects.filter(visit__patient=patient).select_related('visit').order_by('visit__created_at', 'pk')
+            photos = (Photo.objects.filter(visit__patient=patient).select_related('visit')
+                .order_by('visit__visit_number', 'visit__created_at', 'pk'))
             try:
                 ids = [uuid.UUID(i) for i in request.POST.getlist('photos')]
             except ValueError:
