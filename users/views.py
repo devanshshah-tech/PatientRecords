@@ -127,8 +127,11 @@ def visit_detail(request, visit_id):
     clinic_zone = ZoneInfo('Asia/Kolkata')
     day = timezone.localdate(visit.created_at, clinic_zone)
     lower = datetime.datetime.combine(day, datetime.time.min, tzinfo=clinic_zone)
-    submissions = list(Visit.objects.filter(patient=visit.patient, created_at__gte=lower,
-        created_at__lt=lower + datetime.timedelta(days=1)).order_by('created_at', 'pk').prefetch_related('photos'))
+    submissions = Visit.objects.filter(pk=visit.pk)
+    if visit.visit_number is not None:
+        submissions = Visit.objects.filter(patient=visit.patient, visit_number=visit.visit_number,
+            created_at__gte=lower, created_at__lt=lower + datetime.timedelta(days=1))
+    submissions = list(submissions.order_by('created_at', 'pk').prefetch_related('photos'))
     first = submissions[0]
     AuditEvent.objects.create(actor=request.user, action='visit_view', object_id=str(visit.pk))
     recent_url = ''

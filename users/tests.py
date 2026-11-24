@@ -422,27 +422,19 @@ class ClinicalWorkflowTests(TestCase):
         self.client.logout()
         self.assertEqual(self.client.get(url).status_code, 302)
 
-    def test_historical_submissions_group_by_india_day_and_keep_original_links(self):
-        from importlib import import_module
-        from django.apps import apps
-        from types import SimpleNamespace
-
+    def test_visit_details_group_retakes_by_india_day_and_keep_older_numbers_separate(self):
         first = self.create_visit(name_of_intern='First Synthetic Intern')
         retake = self.create_visit(name_of_intern='Second Synthetic Intern')
+        historical = self.create_visit()
         followup = self.create_visit()
         other_hospital = self.create_visit(tf_shift=True)
         # The first two timestamps straddle midnight in Los Angeles in January.
         for visit, number, hour, minute in (
-            (first, 1, 7, 50), (retake, 2, 8, 10), (followup, 3, 18, 30), (other_hospital, 1, 8, 10),
+            (first, 1, 7, 50), (retake, 1, 8, 10), (historical, 2, 8, 20),
+            (followup, 1, 18, 30), (other_hospital, 1, 8, 10),
         ):
             Visit.objects.filter(pk=visit.pk).update(visit_number=number,
                 created_at=datetime(2026, 1, 10, hour, minute, tzinfo=datetime_timezone.utc))
-
-        migration = import_module('users.migrations.0007_group_historical_visit_days')
-        migration.group_visit_days(apps, SimpleNamespace(connection=connection))
-        numbers = Visit.objects.filter(pk__in=[first.pk, retake.pk, followup.pk, other_hospital.pk])
-        self.assertEqual(dict(numbers.values_list('pk', 'visit_number')),
-                         {first.pk: 1, retake.pk: 1, followup.pk: 2, other_hospital.pk: 1})
 
         self.client.force_login(self.doctor)
         for visit in (first, retake):
@@ -452,8 +444,11 @@ class ClinicalWorkflowTests(TestCase):
             self.assertContains(response, 'data-photo-viewer', count=2)
             for included in (first, retake):
                 self.assertContains(response, reverse('private_photo', args=[included.photos.get().pk]))
-            for excluded in (followup, other_hospital):
+            for excluded in (historical, followup, other_hospital):
                 self.assertNotContains(response, reverse('private_photo', args=[excluded.photos.get().pk]))
+        response = self.client.get(reverse('visit_detail', args=[historical.pk]))
+        self.assertContains(response, 'Visit 2')
+        self.assertContains(response, 'data-photo-viewer', count=1)
 
     def test_fetch_success_message_survives_navigation_and_failures_preserve_form_errors(self):
         data = submission()
