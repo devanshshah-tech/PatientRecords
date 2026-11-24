@@ -422,7 +422,7 @@ class ClinicalWorkflowTests(TestCase):
         self.client.logout()
         self.assertEqual(self.client.get(url).status_code, 302)
 
-    def test_visit_details_group_retakes_by_india_day_and_keep_older_numbers_separate(self):
+    def test_visit_details_and_comparison_group_same_india_day_without_renumbering(self):
         first = self.create_visit(name_of_intern='First Synthetic Intern')
         retake = self.create_visit(name_of_intern='Second Synthetic Intern')
         historical = self.create_visit()
@@ -437,18 +437,20 @@ class ClinicalWorkflowTests(TestCase):
                 created_at=datetime(2026, 1, 10, hour, minute, tzinfo=datetime_timezone.utc))
 
         self.client.force_login(self.doctor)
-        for visit in (first, retake):
+        for visit in (first, retake, historical):
             response = self.client.get(reverse('visit_detail', args=[visit.pk]))
+            self.assertContains(response, 'Visit 1')
             self.assertContains(response, 'First Synthetic Intern')
             self.assertContains(response, 'Second Synthetic Intern')
-            self.assertContains(response, 'data-photo-viewer', count=2)
-            for included in (first, retake):
+            self.assertContains(response, 'data-photo-viewer', count=3)
+            for included in (first, retake, historical):
                 self.assertContains(response, reverse('private_photo', args=[included.photos.get().pk]))
-            for excluded in (historical, followup, other_hospital):
+            for excluded in (followup, other_hospital):
                 self.assertNotContains(response, reverse('private_photo', args=[excluded.photos.get().pk]))
-        response = self.client.get(reverse('visit_detail', args=[historical.pk]))
-        self.assertContains(response, 'Visit 2')
-        self.assertContains(response, 'data-photo-viewer', count=1)
+        historical.refresh_from_db()
+        self.assertEqual(historical.visit_number, 2)
+        response = self.client.post(reverse('comparison'), {'patient_id': first.patient.patient_id})
+        self.assertContains(response, 'class="comparison-visit"', count=2)
 
     def test_fetch_success_message_survives_navigation_and_failures_preserve_form_errors(self):
         data = submission()

@@ -18,7 +18,7 @@
     <p>Intern: {{ submission.details.name_of_intern|default:"Not recorded" }}</p>
     <div class="gallery">
       {% for photo in submission.photos.all %}
-        {% include 'photo_thumbnail.html' with photo=photo visit=submission %}
+        {% include 'photo_thumbnail.html' with photo=photo visit=visit photo_timestamp=submission.created_at %}
       {% empty %}<p>No photographs for this submission.</p>{% endfor %}
     </div>
   </section>
