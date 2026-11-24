@@ -384,6 +384,9 @@ class ClinicalWorkflowTests(TestCase):
         self.assertEqual(len(response.context['visits']), 3)
         self.assertEqual(len(response.context['patient_groups']), 2)
         self.assertContains(response, 'View this visit', count=3)
+        intern_label = f"Intern: {first.details['name_of_intern']}"
+        self.assertContains(response, intern_label)
+        self.assertContains(self.client.get(reverse('visit_detail', args=[first.pk])), intern_label)
         self.assertContains(response, 'Compare across visits', count=2)
         self.assertContains(response, 'data-photo-viewer', count=3)
         self.assertContains(response, 'users/photo_viewer.js')

@@ -117,3 +117,5 @@ Public homepage and shared navigation identify the app as Patient Records, match
 
 
 CI must verify that declared requirements.txt constraints are compatible with requirements.lock before tests. Exact-version dependency updates must update both files so CI and deployment exercise the proposed version; passing tests on stale locked dependencies is not upgrade validation.
+
+Doctor search results and single-visit details display the intern name recorded on each visit.
