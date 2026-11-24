@@ -123,7 +123,13 @@ def recent_visits(request):
 def visit_detail(request, visit_id):
     if not can_review(request.user):
         raise PermissionDenied
-    visit = get_object_or_404(Visit.objects.select_related('patient').prefetch_related('photos'), pk=visit_id)
+    visit = get_object_or_404(Visit.objects.select_related('patient'), pk=visit_id)
+    clinic_zone = ZoneInfo('Asia/Kolkata')
+    day = timezone.localdate(visit.created_at, clinic_zone)
+    lower = datetime.datetime.combine(day, datetime.time.min, tzinfo=clinic_zone)
+    submissions = list(Visit.objects.filter(patient=visit.patient, created_at__gte=lower,
+        created_at__lt=lower + datetime.timedelta(days=1)).order_by('created_at', 'pk').prefetch_related('photos'))
+    first = submissions[0]
     AuditEvent.objects.create(actor=request.user, action='visit_view', object_id=str(visit.pk))
     recent_url = ''
     if request.GET.get('recent') == '1':
@@ -135,7 +141,7 @@ def visit_detail(request, visit_id):
                 page_number = 1
             recent_url = reverse('recent_visits') + '?' + urlencode({
                 **{key: value.isoformat() for key, value in dates.cleaned_data.items()}, 'page': page_number})
-    return render(request, 'visit_detail.html', {'visit': visit, 'recent_url': recent_url})
+    return render(request, 'visit_detail.html', {'visit': first, 'submissions': submissions, 'recent_url': recent_url})
 
 
 @login_required

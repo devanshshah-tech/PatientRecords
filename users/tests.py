@@ -408,6 +408,7 @@ class ClinicalWorkflowTests(TestCase):
     def test_single_visit_view_is_private_and_does_not_include_other_visit_photos(self):
         first = self.create_visit(age=24)
         second = self.create_visit(age=25)
+        Visit.objects.filter(pk=second.pk).update(created_at=first.created_at + timedelta(days=1))
         url = reverse('visit_detail', args=[first.pk])
         self.assertEqual(self.client.get(url).status_code, 403)
         self.client.force_login(self.doctor)
@@ -420,6 +421,39 @@ class ClinicalWorkflowTests(TestCase):
         self.assertEqual(response.headers['Cache-Control'], 'no-store, private')
         self.client.logout()
         self.assertEqual(self.client.get(url).status_code, 302)
+
+    def test_historical_submissions_group_by_india_day_and_keep_original_links(self):
+        from importlib import import_module
+        from django.apps import apps
+        from types import SimpleNamespace
+
+        first = self.create_visit(name_of_intern='First Synthetic Intern')
+        retake = self.create_visit(name_of_intern='Second Synthetic Intern')
+        followup = self.create_visit()
+        other_hospital = self.create_visit(tf_shift=True)
+        # The first two timestamps straddle midnight in Los Angeles in January.
+        for visit, number, hour, minute in (
+            (first, 1, 7, 50), (retake, 2, 8, 10), (followup, 3, 18, 30), (other_hospital, 1, 8, 10),
+        ):
+            Visit.objects.filter(pk=visit.pk).update(visit_number=number,
+                created_at=datetime(2026, 1, 10, hour, minute, tzinfo=datetime_timezone.utc))
+
+        migration = import_module('users.migrations.0007_group_historical_visit_days')
+        migration.group_visit_days(apps, SimpleNamespace(connection=connection))
+        numbers = Visit.objects.filter(pk__in=[first.pk, retake.pk, followup.pk, other_hospital.pk])
+        self.assertEqual(dict(numbers.values_list('pk', 'visit_number')),
+                         {first.pk: 1, retake.pk: 1, followup.pk: 2, other_hospital.pk: 1})
+
+        self.client.force_login(self.doctor)
+        for visit in (first, retake):
+            response = self.client.get(reverse('visit_detail', args=[visit.pk]))
+            self.assertContains(response, 'First Synthetic Intern')
+            self.assertContains(response, 'Second Synthetic Intern')
+            self.assertContains(response, 'data-photo-viewer', count=2)
+            for included in (first, retake):
+                self.assertContains(response, reverse('private_photo', args=[included.photos.get().pk]))
+            for excluded in (followup, other_hospital):
+                self.assertNotContains(response, reverse('private_photo', args=[excluded.photos.get().pk]))
 
     def test_fetch_success_message_survives_navigation_and_failures_preserve_form_errors(self):
         data = submission()
